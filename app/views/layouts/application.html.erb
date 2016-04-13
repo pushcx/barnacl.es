@@ -58,6 +58,8 @@
         <% if @user %>
           <% links.merge!({ "/threads" => "Your Threads",
             "/stories/new" => "Submit Story" }) %>
+        <% else %>
+          <% links.merge!({ "/invitations/request" => "Join Barnacles" }) %>
         <% end %>
 
         <% links.merge!({ "/search" => "Search" }) %>
@@ -125,6 +127,9 @@
         <% if @user && @user.is_moderator? &&
         (hrc = HatRequest.count) > 0 %>
           <a href="/hats/requests">Hat Requests (<%= hrc %>)</a>
+        <% end %>
+        <% if @user.blank? %>
+          <a href="/invitations/request">Join Barnacles</a>
         <% end %>
         <a href="/chat">Chat</a>
         <% if defined?(BbsController) %>
