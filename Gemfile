@@ -4,7 +4,8 @@ ruby "2.3.0"
 
 gem "rails", "4.1.12"
 
-gem "unicorn"
+gem "puma"
+gem "rails_12factor"
 
 gem "mysql2", ">= 0.3.14"
 
