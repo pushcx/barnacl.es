@@ -82,7 +82,7 @@ Story.where("id > ? AND is_expired = ?", last_story_id, false).order(:id).each d
       Rails.application.domain
 
     IO.popen([ {}, "/usr/sbin/sendmail", "-i", "-f",
-    "nobody@#{Rails.application.domain}", u.email ], "w") do |mail|
+    "system@#{Rails.application.domain}", u.email ], "w") do |mail|
       mail.puts "From: #{s.user.username} <#{s.user.username}@" <<
         "#{Rails.application.domain}>"
       mail.puts "Reply-To: #{list}"
