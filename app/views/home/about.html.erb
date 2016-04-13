@@ -1,0 +1,124 @@
+<h1>About</h1>
+
+<p>
+Barnacles is a link-aggregation site for small, self-funded businesses that define success on their own terms.
+The goal is to continue and grow the generous, collaborative community that gathers at events like <a href="https://www.MicroConf.com">MicroConf</a> and <a href="http://www.baconbiz.com">BaconBiz</a>.
+The code and name are based on <a href="https://lobste.rs/about">Lobsters</a>, a tech news site.
+</p>
+
+<p>
+<strong>Transparency Policy</strong><br>
+Some other link aggregation sites are operated by corporate entities which may have significant financial incentive to censor or artificially promote the links and discussion that relate to those entities, their investments, or their competitors.
+Some of these sites have had moderators of popular sub-forums banned after it became known that they were being paid by 3rd party companies seeking special treatment of their submitted stories.
+</p>
+
+<p>
+All <a href="/moderations">moderator actions</a> on this site are visible to everyone and the identities of those moderators are <a href="/u?moderators=1">made public</a>.
+While the individual actions of a moderator may cause debate, there should be no question about which moderator it was or whether they had an ulterior motive for those actions.
+</p>
+
+<p>
+All user voting and story ranking on this site uses a universal algorithm and does not <a href="http://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html" rel="nofollow">artificially penalize</a> or prioritize users or domains.
+Per-tag <a href="/filters">hotness modifiers</a> do affect all stories with those tags, but these modifiers are made public and usually used to shorten the life of meta-discussions.
+If certain domains have to be banned from being submitted due to spam, the list will be made publicly available.
+</p>
+
+<p>
+If users are disruptive enough to warrant banning, they will be banned absolutely, given notice of their banning, and their disabled user profile will indicate which moderator banned them and why.
+There will be no hidden "shadow banning" or "hellbanning" of users.
+</p>
+
+<p>
+The <a href="https://github.com/pushcx/barnacl.es">source code to this site</a> is available under a 3-clause BSD license for viewing, auditing, forking, or contributing to.
+It is based on <a href="https://github.com/jcs/lobsters">Lobsters</a> codebase generously shared by <a href="https://jcs.org">Joshan Stein</a>.
+</p>
+
+<p>
+<strong>Tagging</strong><br>
+All stories are tagged by the submitter from a list of predefined <a href="/filters">tags</a>.
+Users can choose to <a)href="/filters">filter</a> out all submissions with particular tags, but rather than use rigidly segmented sub-forums that users must each subscribe to, all users see all tagged stories by default.
+</p>
+
+<p>
+This helps keep the site on-topic, keeps conversation from fragmenting, and prompts more collaboration.
+Users who strongly dislike a topic enough can filter it out.
+</p>
+
+<p>
+Creating, changing, and retiring tags is done by the community by voting on and discussing <a href="/t/meta">meta-tagged</a> requests about them.
+If you are suggesting a new tag, build your case by explaining why it's vital and including stories that should have been tagged.
+</p>
+
+<p>
+<strong>Invitation Tree</strong><br />
+Invitations are used as a mechanism for spam-control and to encourage users to be nice.
+New users must be invited by a current user, though there is no vetting process.
+The most efficient way to receive an invitation is to talk to someone you recognize from the site.
+Invitations are unlimited unless scaling problems temporarily prevent new accounts.
+In case of serious abuse that require banning, the user that invited them may also be banned, going up the chain of invitations as needed.
+</p>
+
+<p>
+The full <a href="/u">user tree</a> is made public and each user's profile shows who invited them.
+This provides some degree of accountability and can act as a tool to help identify voting rings.
+</p>
+
+<p>
+<strong>Downvote Explanations</strong><br />
+Downvotes are not for disagreeing or punishing.
+Users downvoting comments must choose a reason which is visible to the submitter and moderators.
+</p>
+<p>
+For submitted stories, downvoting is done through flagging (also requiring a valid reason) and these flag summaries are shown to all users.
+</p>
+
+<p>
+<strong>Mailing List Mode</strong><br />
+Users can enable a <a href="https://lobste.rs/s/jg3eet">mailing list mode</a> of the site which e-mails all new stories (including their plain-text content as fetched and extracted by <a href="http://diffbot.com/">Diffbot</a>) and user comments as threaded discussions.
+This makes it easy and efficient to read new stories as well as keep track of new comments on old threads or stories, just like technical mailing lists or Usenet of yore.
+</p>
+<p>
+Each user has a private mailing list address at this domain which allows them to reply to stories or comments directly in their e-mail client.
+These e-mails are then converted and submitted to the website as comments, just as
+if the comment was posted through a web browser.
+</p>
+
+<p id="features">
+<strong>Other Features</strong>
+</p>
+<ul>
+<li><p>
+Private Messaging: Users here can send private messages to each other without having to publicly disclose an e-mail address, and can receive e-mail and <a href="https://pushover.net/">Pushover</a> notifications of new instant messages.
+</p></li>
+
+<li><p>
+Integrated responsive design: enhances functionality on smaller screens such as phones and tablets without having to use a separate URL, 3rd party  sites, or proprietary mobile applications.
+</p></li>
+
+<li><p>
+Integrated <a href="/search">search engine</a> covering all submitted stories and comments, including full-text caches of all submitted story contents.
+<!-- As an example, a search for <a href="/search?q=theo+de+raadt">Theo de Raadt</a> brings up many stories about <a href="/t/openbsd">OpenBSD</a> despite his name not being present in the story title. -->
+</p></li>
+
+<li><p>
+<a href="https://lobste.rs/s/cqq0kg/story_merging">Story merging</a> to combat the problem of multiple stories at different URLs being submitted in a short timeframe about
+the same news subject.
+Rather than have multiple stories on the front page with fragmented discussions, all similar stories can be merged into one.
+An <a href="https://lobste.rs/s/klkmey">example</a> of a story having been merged into a previous one, combining all comments on one page.
+</p></li>
+
+<li><p>
+Fuzzy-matching of submitted story URLs to avoid duplicate submissions of similar URLs that differ only in http vs. https, trailing slashes, useless analytics parameters, etc.
+When using the story submission bookmarklet, story URLs are automatically converted to use the page's canonical URL (if available) to present the best URL to represent the story.
+</p></li>
+
+<li><p>
+Per-tag and <a href="/rss">site-wide RSS</a> feeds are available to the public and logged-in users have private RSS feeds that filter out each user's <a href="/filters">filtered tags</a>.
+</p></li>
+
+<li><p>
+<a href="/hats">Hats</a>: a more formal process of allowing users to post comments while "wearing X hat" to give their words more authority (such as an employee speaking for the company, or an open source developer speaking for the project).
+</p></li>
+</ul>
+
+
