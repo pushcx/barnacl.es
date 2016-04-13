@@ -4,16 +4,19 @@
   </div>
 
   <p>
-  If you don't know (or can't find) an <a href="/u/">existing user</a> from
-  whom to request an invitation, you can make a public request for one.  This
-  will display your name and memo to all other logged-in users who can then
-  send you an invitation if they recognize you.
+  Barnacles requires an invitation to join and is currently (April 2016) quickly accepting requests on the form below.
+  (It's less trouble than trying to disable to invitation system that was mandatorily built into the site this code came from.)
   </p>
 
   <p>
-  Your e-mail address must be valid and confirmed by visiting a URL e-mailed to
-  you before your request will be displayed.  Your e-mail address will not be
-  shown to any other users (except moderators).
+  Quickest route: ask an <a href="/u/">existing user</a> to invite you (it's on their settings page, accessed by clicking their username in the header).
+  Otherwise, make a public request below.
+  This will display your name and URL to all other logged-in users who can then send you an invitation if they recognize you.
+  </p>
+
+  <p>
+  Your e-mail address must be valid and confirmed by visiting a URL e-mailed to you before your request will be displayed.
+  Your e-mail address will not be shown to any other users (except moderators).
   </p>
 
   <%= form_for @invitation_request,
@@ -31,8 +34,7 @@
     <%= f.text_field :memo, :size => 30 %>
     <br />
     <label></label>
-    <span class="na">URL to verify you (Personal website, Github account,
-      etc.)</span>
+    <span class="na">URL to verify you (Business or personal website, Twitter, Github, etc.)</span>
     </p>
 
     <p>

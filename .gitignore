@@ -19,11 +19,6 @@
 vendor/bundle
 public/assets
 
-# templates to be created per-site
-app/views/home/privacy.*
-app/views/home/about.*
-app/views/home/chat.*
-
 # files added in production
 lib/tasks/deploy.rake
 config/initializers/production.rb
