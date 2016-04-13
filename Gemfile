@@ -22,6 +22,7 @@ gem "jquery-rails"
 gem "dynamic_form"
 
 gem "exception_notification"
+gem "postmark-rails"
 
 gem "bcrypt", "~> 3.1.2"
 
