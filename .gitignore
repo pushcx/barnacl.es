@@ -23,7 +23,6 @@ public/assets
 app/views/home/privacy.*
 app/views/home/about.*
 app/views/home/chat.*
-app/assets/stylesheets/local/*
 
 # files added in production
 lib/tasks/deploy.rake
@@ -32,8 +31,3 @@ config/database.yml
 config/initializers/secret_token.rb
 config/*.sphinx.conf
 config/unicorn.conf.rb
-
-# bbs symlinks into ../lobsters-bbs
-app/controllers/bbs_controller.rb
-app/views/layouts/bbs.*
-public/bbs

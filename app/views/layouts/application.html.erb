@@ -46,7 +46,7 @@
     <div id="header">
       <div id="headerleft">
         <a id="l_holder" style="background-color: #<%= sprintf("%02x%02x%02x",
-        [ 255, (@traffic * 7).floor + 50.0 ].min, 0, 0) %>;" href="/"
+        [ 195, (@traffic * 7).floor + 50.0 ].min, 0, [ 195, (@traffic * 7).floor + 50.0 ].min) %>;" href="/"
         title="<%= Rails.application.name %> (Current traffic: <%= @traffic.to_i %>)"></a>
 
         <% links = {
