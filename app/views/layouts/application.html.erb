@@ -59,7 +59,7 @@
           <% links.merge!({ "/threads" => "Your Threads",
             "/stories/new" => "Submit Story" }) %>
         <% else %>
-          <% links.merge!({ "/invitations/request" => "Join Barnacles" }) %>
+          <% links.merge!({ "/invitations/request" => "Barnacles" }) %>
         <% end %>
 
         <% links.merge!({ "/search" => "Search" }) %>
@@ -75,6 +75,9 @@
           <% links.each do |u,v| %>
             <a href="<%= u %>" <%= u == @cur_url ? raw("class=\"cur_url\"") :
               "" %>><%= v %></a>
+          <% end %>
+          <% if !@user %>
+            <strong style="color: green !important;"><a href="/invitations/request">Sign Up Now</a></strong>
           <% end %>
         </span>
       </div>
