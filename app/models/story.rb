@@ -184,7 +184,7 @@ class Story < ActiveRecord::Base
     else
       cpoints = self.comments.where("user_id <> ?", self.user_id).
         select(:upvotes, :downvotes).map{|c| c.upvotes + 1 - c.downvotes }.
-        inject(&:+).to_f * 0.5
+        inject(&:+).to_f * 2
     end
 
     # mix in any stories this one cannibalized
