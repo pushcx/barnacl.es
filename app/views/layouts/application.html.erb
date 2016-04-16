@@ -73,7 +73,7 @@
               "" %>><%= v %></a>
           <% end %>
           <% if !@user %>
-            <strong><a href="/invitations/request" style="color: green !important;">Sign Up Now</a></strong>
+            <strong><a href="/invitations/open" style="color: green !important;">Sign Up Now</a></strong>
           <% end %>
         </span>
       </div>
@@ -128,7 +128,7 @@
           <a href="/hats/requests">Hat Requests (<%= hrc %>)</a>
         <% end %>
         <% if @user.blank? %>
-          <a href="/invitations/request">Join Barnacles</a>
+          <a href="/invitations/open">Join Barnacles</a>
         <% end %>
         <a href="/chat">Chat</a>
         <% if defined?(BbsController) %>
