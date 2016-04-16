@@ -80,6 +80,7 @@ Lobsters::Application.configure do
   config.action_mailer.postmark_settings = { :api_key => ENV["POSTMARK_API_KEY"] }
 
   config.middleware.use Rack::HostRedirect, {
-    'www.barnacl.es' => 'barnacl.es'
+    'www.barnacl.es'          => 'barnacl.es',
+    'barnacles.herokuapp.com' => 'barnacl.es',
   }
 end
