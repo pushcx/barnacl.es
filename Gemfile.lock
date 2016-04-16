@@ -68,6 +68,8 @@ GEM
       postmark (~> 1.7.0)
     puma (3.4.0)
     rack (1.5.5)
+    rack-host-redirect (1.2.1)
+      rack
     rack-test (0.6.3)
       rack (>= 1.0)
     rails (4.1.12)
@@ -148,6 +150,7 @@ DEPENDENCIES
   pg
   postmark-rails
   puma
+  rack-host-redirect
   rails (= 4.1.12)
   rails_12factor
   rdiscount
