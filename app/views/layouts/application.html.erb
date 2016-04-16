@@ -10,7 +10,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noarchive,noodp,noydir" />
   <meta name="referrer" content="always" />
-  <meta name="theme-color" content="#AC130D" />
+  <meta name="theme-color" content="#34a713" />
   <% if @meta_tags %>
     <% @meta_tags.each do |k,v| %>
       <meta name="<%= k %>" content="<%= v %>" />
@@ -46,7 +46,7 @@
     <div id="header">
       <div id="headerleft">
         <a id="l_holder" style="background-color: #<%= sprintf("%02x%02x%02x",
-        [ 195, (@traffic * 7).floor + 50.0 ].min, 0, [ 195, (@traffic * 7).floor + 50.0 ].min) %>;" href="/"
+        32, (@traffic * 1.67), 13) %>;" href="/"
         title="<%= Rails.application.name %> (Current traffic: <%= @traffic.to_i %>)"></a>
 
         <% links = {

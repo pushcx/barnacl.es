@@ -315,7 +315,7 @@ div#inside {
 }
 
 #header a.new_messages {
-	color: #ac130d;
+	color: #34a713;
 }
 
 div#leader {
@@ -421,7 +421,7 @@ div.voters .downvoter {
 
 div.voters .upvoter:hover,
 .upvoted div.voters .upvoter {
-	border-bottom-color: #ac130d;
+	border-bottom-color: #34a713;
 }
 
 div.voters .upvoter {
