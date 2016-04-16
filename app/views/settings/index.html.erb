@@ -168,13 +168,6 @@
     </p>
 
     <div class="boxline">
-      <%= f.label :mailing_list_mode, "Receive List E-mails:",
-        :class => "required" %>
-      <%= f.select :mailing_list_mode, [ [ "No e-mails", 0 ],
-        [ "All stories and comments", 1 ], [ "Only stories", 2 ] ] %>
-    </div>
-
-    <div class="boxline">
       <label class="required">List Address:</label>
       <span>
       <tt><%= Rails.application.shortname %>-<%=
