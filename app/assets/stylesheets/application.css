@@ -1196,7 +1196,7 @@ div.fieldWithErrors {
 	border: 1px solid rgba(160,160,160,.8);
 }
 .select2-container .select2-results .select2-highlighted {
-	background: darkred;
+	background: #34a713;
 	color: #fff;
 }
 
