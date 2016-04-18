@@ -2,7 +2,8 @@
 
 This is the source code to the site operating at [https://barnacl.es](https://barnacl.es).
 It is based on and closely follows the codebase behind [https://lobste.rs](https://lobste.rs), available on [GitHub](https://github.com/jcs/lobsters).
-If you want to run a news site, you're better off forking from Lobsters rather than Barnacles.
+If you want to run a news site, you're better off forking from Lobsters rather than Barnacles,
+but you might find the early commits useful for configuration or if using Postgresql.
 
 Unlike Lobsters, site-specific content like copy and styling are commited (to `master`).
 The `lobsters` branch clones `jcs/master`.
