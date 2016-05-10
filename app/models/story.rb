@@ -25,6 +25,12 @@ class Story < ActiveRecord::Base
   validates_length_of :url, :maximum => 250, :allow_nil => true
   validates_presence_of :user_id
 
+  validates_each :merged_story_id do |record,attr,value|
+    if value.to_i == record.id
+      record.errors.add(:merge_story_short_id, "id cannot be itself.")
+    end
+  end
+
   DOWNVOTABLE_DAYS = 14
 
   # after this many minutes old, a story cannot be edited
@@ -213,11 +219,7 @@ class Story < ActiveRecord::Base
   end
 
   def can_have_suggestions_from_user?(user)
-    if !user
-      return false
-    end
-
-    if user.id == self.user_id
+    if !user || (user.id == self.user_id) || !user.can_offer_suggestions?
       return false
     end
 
@@ -442,11 +444,6 @@ class Story < ActiveRecord::Base
     Keystore.increment_value_for("user:#{self.user_id}:stories_submitted")
   end
 
-  def merge_into_story!(story)
-    self.merged_story_id = story.id
-    self.save!
-  end
-
   def merged_comments
     # TODO: make this a normal has_many?
     Comment.where(:story_id => Story.select(:id).
@@ -634,11 +631,29 @@ class Story < ActiveRecord::Base
   end
 
   def title_as_url
-    u = self.title.downcase.gsub(/[^a-z0-9_-]/, "_")
-    while u.match(/__/)
-      u.gsub!("__", "_")
+    max_len = 35
+    wl = 0
+    words = []
+
+    self.title.downcase.gsub(/[,'`\"]/, "").gsub(/[^a-z0-9]/, "_").split("_").
+    reject{|z| [ "", "a", "an", "and", "but", "in", "of", "or", "that", "the",
+    "to" ].include?(z) }.each do |w|
+      if wl + w.length <= max_len
+        words.push w
+        wl += w.length
+      else
+        if wl == 0
+          words.push w[0, max_len]
+        end
+        break
+      end
     end
-    u.gsub(/^_+/, "").gsub(/_+$/, "")
+
+    if !words.any?
+      words.push "_"
+    end
+
+    words.join("_").gsub(/_-_/, "-")
   end
 
   def to_param

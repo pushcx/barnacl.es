@@ -6,6 +6,7 @@ class HomeController < ApplicationController
 
   def about
     begin
+      @title = "About"
       render :action => "about"
     rescue
       render :text => "<div class=\"box wide\">" <<
@@ -16,6 +17,7 @@ class HomeController < ApplicationController
 
   def chat
     begin
+      @title = "Chat"
       render :action => "chat"
     rescue
       render :text => "<div class=\"box wide\">" <<
@@ -26,6 +28,7 @@ class HomeController < ApplicationController
 
   def privacy
     begin
+      @title = "Privacy"
       render :action => "privacy"
     rescue
       render :text => "<div class=\"box wide\">" <<
@@ -108,7 +111,13 @@ class HomeController < ApplicationController
     @newest = true
     @for_user = by_user.username
 
-    render :action => "index"
+    respond_to do |format|
+      format.html { render :action => "index" }
+      format.rss {
+        render :action => "rss", :layout => false
+      }
+      format.json { render :json => @stories }
+    end
   end
 
   def recent
