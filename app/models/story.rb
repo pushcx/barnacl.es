@@ -111,7 +111,11 @@ class Story < ActiveRecord::Base
     end
     urls = urls2.clone
 
-    if s = Story.where(:url => urls, :is_expired => false).order("id DESC").first
+    # if a previous submission was moderated, return it to block it from being
+    # submitted again
+    if s = Story.where(:url => urls).
+    where("is_expired = ? OR is_moderated = ?", false, true).
+    order("id DESC").first
       return s
     end
 
@@ -206,8 +210,15 @@ class Story < ActiveRecord::Base
       sign = 0
     end
 
-    return -((order * sign) + base +
-      ((self.created_at || Time.now).to_f / HOTNESS_WINDOW)).round(7)
+    # if any newer stories were merged into us, use the newest created_at to
+    # take its place on the front page
+    tcreated_at = (self.created_at || Time.now).to_f
+    if (mtca = self.merged_stories.map{|ts| ts.created_at.to_f }.max) &&
+    mtca > tcreated_at
+      tcreated_at = mtca
+    end
+
+    return -((order * sign) + base + (tcreated_at / HOTNESS_WINDOW)).round(7)
   end
 
   def can_be_seen_by_user?(user)
@@ -239,7 +250,7 @@ class Story < ActiveRecord::Base
       if !t.tag.valid_for?(u)
         raise "#{u.username} does not have permission to use privileged " <<
           "tag #{t.tag.tag}"
-      elsif t.tag.inactive? && !t.new_record? && !t.marked_for_destruction?
+      elsif t.tag.inactive? && t.new_record? && !t.marked_for_destruction?
         # stories can have inactive tags as long as they existed before
         raise "#{u.username} cannot add inactive tag #{t.tag.tag}"
       end

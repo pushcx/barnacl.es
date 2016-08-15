@@ -18,6 +18,8 @@ class User < ActiveRecord::Base
     :class_name => "User"
   belongs_to :banned_by_user,
     :class_name => "User"
+  belongs_to :disabled_invite_by_user,
+    :class_name => "User"
   has_many :invitations
   has_many :votes
   has_many :voted_stories, -> { where('votes.comment_id' => nil) },
@@ -61,6 +63,9 @@ class User < ActiveRecord::Base
 
   # minimum karma required to be able to offer title/tag suggestions
   MIN_KARMA_TO_SUGGEST = 10
+
+  # minimum karma required to be able to submit new stories
+  MIN_KARMA_TO_SUBMIT_STORIES = -4
 
   def self.recalculate_all_karmas!
     User.all.each do |u|
@@ -108,6 +113,33 @@ class User < ActiveRecord::Base
     end
   end
 
+  def disable_invite_by_user_for_reason!(disabler, reason)
+    self.disabled_invite_at = Time.now
+    self.disabled_invite_by_user_id = disabler.id
+    self.disabled_invite_reason = reason
+
+    msg = Message.new
+    msg.deleted_by_author = true
+    msg.author_user_id = disabler.id
+    msg.recipient_user_id = self.id
+    msg.subject = "Your invite privileges have been revoked"
+    msg.body = "The reason given:\n" <<
+      "\n" <<
+      "> *#{reason}*\n" <<
+      "\n" <<
+      "*This is an automated message.*"
+    msg.save
+
+    m = Moderation.new
+    m.moderator_user_id = disabler.id
+    m.user_id = self.id
+    m.action = "Disabled invitations"
+    m.reason = reason
+    m.save!
+
+    true
+  end
+
   def ban_by_user_for_reason!(banner, reason)
     self.banned_at = Time.now
     self.banned_by_user_id = banner.id
@@ -125,6 +157,10 @@ class User < ActiveRecord::Base
     m.save!
 
     true
+  end
+
+  def banned_from_inviting?
+    disabled_invite_at?
   end
 
   def can_downvote?(obj)
@@ -149,8 +185,16 @@ class User < ActiveRecord::Base
     false
   end
 
+  def can_invite?
+    !banned_from_inviting? && self.can_submit_stories?
+  end
+
   def can_offer_suggestions?
     !self.is_new? && (self.karma >= MIN_KARMA_TO_SUGGEST)
+  end
+
+  def can_submit_stories?
+    self.karma >= MIN_KARMA_TO_SUBMIT_STORIES
   end
 
   def check_session_token
@@ -307,12 +351,28 @@ class User < ActiveRecord::Base
     self.banned_at = nil
     self.banned_by_user_id = nil
     self.banned_reason = nil
+    self.deleted_at = nil
     self.save!
 
     m = Moderation.new
     m.moderator_user_id = unbanner.id
     m.user_id = self.id
     m.action = "Unbanned"
+    m.save!
+
+    true
+  end
+
+  def enable_invite_by_user!(mod)
+    self.disabled_invite_at = nil
+    self.disabled_invite_by_user_id = nil
+    self.disabled_invite_reason = nil
+    self.save!
+
+    m = Moderation.new
+    m.moderator_user_id = mod.id
+    m.user_id = self.id
+    m.action = "Enabled invitations"
     m.save!
 
     true

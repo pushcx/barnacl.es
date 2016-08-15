@@ -3,7 +3,7 @@ class ApplicationController < ActionController::Base
   before_filter :authenticate_user
   before_filter :increase_traffic_counter
 
-  TRAFFIC_DECREMENTER = 0.25
+  TRAFFIC_DECREMENTER = 0.30
 
   TAG_FILTER_COOKIE = :tag_filters
 
@@ -50,6 +50,9 @@ class ApplicationController < ActionController::Base
 
       Rails.logger.info "  Traffic level: #{@traffic.to_i}"
     end
+
+    @traffic_color = sprintf("%02x%02x%02x",
+      32, [ 255, (@traffic * 7).floor + 50.0 ].min, 13)
 
     true
   end
