@@ -83,8 +83,8 @@ class StoryRepository
   end
 
   def top(length)
-    top = base_scope.where("created_at >= (NOW() - INTERVAL " <<
-      "#{length[:dur]} #{length[:intv].upcase})")
+    top = base_scope.where("created_at >= (NOW() - INTERVAL '" <<
+      "#{length[:dur]} #{length[:intv].upcase}')")
     top.order("#{Story.score_sql} DESC")
   end
 
