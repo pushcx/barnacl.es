@@ -123,7 +123,9 @@
         <% end %>
         <% if @user && @user.is_moderator? &&
         (hrc = HatRequest.count) > 0 %>
-          <a href="/hats/requests">Hat Requests (<%= hrc %>)</a>
+          <a href="/hats/requests"><%= t('.hatrequestlink') %> (<%= hrc %>)</a>
+        <% else %>
+          <a href="/hats"><%= t('.hatslink') %></a>
         <% end %>
         <% if @user.blank? %>
           <a href="/invitations/open">Join Barnacles</a>
