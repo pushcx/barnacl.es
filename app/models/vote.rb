@@ -7,6 +7,7 @@ class Vote < ActiveRecord::Base
     "O" => "Off-topic",
     "I" => "Incorrect",
     "M" => "Me-too",
+    "U" => "Unkind",
     "T" => "Troll",
     "S" => "Spam",
     "" => "Cancel",
