@@ -29,6 +29,8 @@ gem "nokogiri", "= 1.6.1"
 gem "htmlentities"
 gem "rdiscount"
 
+gem "activerecord-typedstore"
+
 # for twitter-posting bot
 gem "oauth"
 
