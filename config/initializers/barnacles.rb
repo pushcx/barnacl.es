@@ -13,6 +13,6 @@ Rails.application.routes.default_url_options[:host] = Rails.application.domain
 Rails.application.config.middleware.use ExceptionNotification::Rack,
   :email => {
     :email_prefix => "",
-    :sender_address => %{"system" <Barnicles@nirdhost.com>},
-    :exception_recipients => %w{engineerbell@gmail.com},
+    :sender_address => %{"system" <system@barnacl.es>},
+    :exception_recipients => %w{peter@valent.io},
   }
