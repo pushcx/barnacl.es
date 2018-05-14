@@ -45,6 +45,8 @@ class Story < ActiveRecord::Base
   # let a hot story linger for this many seconds
   HOTNESS_WINDOW = 60 * 60 * 22
 
+  SPAM_DOMAINS = %w{anyforsoft.com incubasysblockchain.com kolosek.com sloboda-studio.com theappsolutions.com w3techs.in webcase.studio}
+
   attr_accessor :vote, :already_posted_story, :previewing, :seen_previous,
     :is_hidden_by_cur_user
   attr_accessor :editor, :moderation_reason, :merge_story_short_id,
@@ -72,6 +74,7 @@ class Story < ActiveRecord::Base
               "#{RECENT_DAYS} days")
           end
         end
+        check_not_spam_domain
       else
         errors.add(:url, "is not valid")
       end
@@ -84,6 +87,14 @@ class Story < ActiveRecord::Base
     end
 
     check_tags
+  end
+
+  def check_not_spam_domain
+    return unless self.url.present? && self.new_record?
+
+    if SPAM_DOMAINS.include?(domain)
+      errors.add(:url, "is a spam site")
+    end
   end
 
   def self.find_similar_by_url(url)
