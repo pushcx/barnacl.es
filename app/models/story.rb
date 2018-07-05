@@ -45,7 +45,7 @@ class Story < ActiveRecord::Base
   # let a hot story linger for this many seconds
   HOTNESS_WINDOW = 60 * 60 * 22
 
-  SPAM_DOMAINS = %w{anyforsoft.com applikeysolutions.com backend-devs.com cleveroad.com db-devs.com document360.io existek.com freshcode.com incubasysblockchain.com jelvix.com kolosek.com lvivity.com mage-devs.com sloboda-studio.com theappsolutions.com thinkmobiles.com w3techs.in webcase.studio}
+  SPAM_DOMAINS = %w{anyforsoft.com applikeysolutions.com backend-devs.com biztalk360.co.uk cleveroad.com db-devs.com document360.io existek.com freshcode.com incubasysblockchain.com jelvix.com kolosek.com lvivity.com mage-devs.com sloboda-studio.com theappsolutions.com thinkmobiles.com w3techs.in webcase.studio}
 
   attr_accessor :vote, :already_posted_story, :previewing, :seen_previous,
     :is_hidden_by_cur_user
