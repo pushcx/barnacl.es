@@ -45,7 +45,7 @@ class Story < ActiveRecord::Base
   # let a hot story linger for this many seconds
   HOTNESS_WINDOW = 60 * 60 * 22
 
-  SPAM_DOMAINS = %w{anyforsoft.com applikeysolutions.com arlonetgearlogin.xyz backend-devs.com belkinn300setup.com biztalk360.co.uk buysellchips.co.in cleveroad.com cromecastcomsetup.com db-devs.com ddi-dev.com document360.io existek.com freshcode.com frontdevelopers.com hiverhq.com incubasysblockchain.com jelvix.com kolosek.com lvivity.com mage-devs.com mobisoftinfotech.com onlinedevicesupport.com pattronize.com resources.hiverhq.com rrcomlogin.com sbcglobalsupport.com sloboda-studio.com softmedialab.com smarttvhelpline.com thedevicehelp.theappsolutions.com thinkmobiles.com w2ssolutions.com w3techs.in webcase.studio}
+  SPAM_DOMAINS = %w{anyforsoft.com applikeysolutions.com arlonetgearlogin.xyz backend-devs.com belkinn300setup.com biztalk360.co.uk buysellchips.co.in cleveroad.com cromecastcomsetup.com db-devs.com ddi-dev.com dnsassociates.co.uk document360.io existek.com freshcode.com frontdevelopers.com hiverhq.com incubasysblockchain.com jelvix.com kolosek.com lvivity.com mage-devs.com mobisoftinfotech.com onlinedevicesupport.com pattronize.com resources.hiverhq.com rrcomlogin.com sbcglobalsupport.com sloboda-studio.com softmedialab.com smarttvhelpline.com thedevicehelp.theappsolutions.com thinkmobiles.com w2ssolutions.com w3techs.in webcase.studio}
 
   attr_accessor :vote, :already_posted_story, :previewing, :seen_previous,
     :is_hidden_by_cur_user
