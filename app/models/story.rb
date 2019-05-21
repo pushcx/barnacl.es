@@ -45,7 +45,7 @@ class Story < ActiveRecord::Base
   # let a hot story linger for this many seconds
   HOTNESS_WINDOW = 60 * 60 * 22
 
-  SPAM_DOMAINS = %w{anyforsoft.com applikeysolutions.com appus.software arlonetgearlogin.xyz
+  SPAM_DOMAINS = %w{agradeessay.com anyforsoft.com applikeysolutions.com appus.software arlonetgearlogin.xyz
   backend-devs.com belkinn300setup.com biztalk360.co.uk buysellchips.co.in cleveroad.com
   cromecastcomsetup.com db-devs.com ddi-dev.com dnsassociates.co.uk document360.io existek.com
   freshcode.com frontdevelopers.com gogoprint.co.th gogoprint.com.my hiverhq.com
