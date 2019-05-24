@@ -48,7 +48,7 @@ class Story < ActiveRecord::Base
   SPAM_DOMAINS = %w{agradeessay.com anyforsoft.com applikeysolutions.com appus.software arlonetgearlogin.xyz
   backend-devs.com belkinn300setup.com biztalk360.co.uk buysellchips.co.in cleveroad.com
   cromecastcomsetup.com db-devs.com ddi-dev.com dnsassociates.co.uk document360.io existek.com
-  freshcode.com frontdevelopers.com gogoprint.co.th gogoprint.com.my hiverhq.com
+  freshcode.com frontdevelopers.com gogoprint.co.th gogoprint.com.my growth.design hiverhq.com
   incubasysblockchain.com jelvix.com kolosek.com lvivity.com mage-devs.com mobisoftinfotech.com
   onlinedevicesupport.com pattronize.com resources.hiverhq.com rrcomlogin.com rubygarage.org
   sbcglobalsupport.com sloboda-studio.com softmedialab.com smarttvhelpline.com
