@@ -3,8 +3,7 @@
     Edit Story
   </div>
 
-  <%= form_for @story, :url => story_path(@story.short_id),
-  :method => :put, :html => { :id => "edit_story" } do |f| %>
+  <%= form_with model: @story, url: story_path(@story.short_id), method: :put, id: 'edit_story', local: true do |f| %>
     <%= render :partial => "stories/form", :locals => { :story => @story,
       :f => f } %>
 
@@ -27,9 +26,8 @@
         </div>
         <% if @story.user_id != @user.id %>
           <div class="boxline">
-            <%= f.label :moderation_reason, "Mod Reason:",
-              :class => "required" %>
-            <%= f.text_field :moderation_reason, :autocomplete => "off" %>
+            <%= f.label :moderation_reason, "Mod Reason:", :class => "required" %>
+            <%= f.text_field :moderation_reason %>
           </div>
         <% end %>
       </div>
@@ -43,14 +41,31 @@
           Markdown formatting available
         </div>
 
-        <%= submit_tag "Save" %>
-        &nbsp;or <a href="<%= story_path(@story.short_id) %>">cancel
-          editing</a>
+        <%= f.submit "Save" %>
+
+        <% if @story.is_gone? && @story.is_undeletable_by_user?(@user) %>
+          &nbsp; | &nbsp;
+          <%= link_to "Undelete", story_undelete_path(@story.short_id),
+            :method => :post, :data => {
+            :confirm => "Are you sure you want to undelete this story?" },
+            :class => "button" %>
+        <% elsif !@story.is_gone? %>
+          &nbsp; | &nbsp;
+          <% if @story.user_id != @user.id && @user.is_moderator? %>
+            <%= link_to "Delete", story_path(@story.short_id),
+              :method => :delete, :class => "button mod_story_link deletion" %>
+          <% else %>
+            <%= link_to "Delete", story_path(@story.short_id),
+              :method => :delete, :data => {
+              :confirm => "Are you sure you want to delete this story?" },
+              :class => "button" %>
+          <% end %>
+        <% end %>
 
         <div style="clear: both;"></div>
 
         <%= render :partial => "global/markdownhelp",
-          :locals => { :allow_images => true } %>
+          :locals => { allow_images: @story.can_have_images? } %>
       </div>
     </div>
   <% end %>

@@ -1,45 +1,61 @@
 <input id="comment_folder_<%= comment.short_id %>"
   class="comment_folder_button" type="checkbox"
-  <%= comment.score <= Comment::DOWNVOTABLE_MIN_SCORE &&
-  !(@force_show_thread_id && @force_show_thread_id == comment.thread_id) ?
-  "checked" : "" %>>
-<div id="comment_<%= comment.short_id %>"
+  <%= defined?(force_open) ||
+      @user.try(:is_moderator?) ||
+      comment.score > Comment::COLLAPSE_SCORE ? "" : "checked" %>>
+
+<div id="c_<%= comment.short_id %>"
 data-shortid="<%= comment.short_id if comment.persisted? %>"
 class="comment <%= comment.current_vote ? (comment.current_vote[:vote] == 1 ?
 "upvoted" : "downvoted") : "" %>
-  <%= comment.highlighted ? "highlighted" : "" %>
-  <%= comment.score <= -1 ? "negative_1" : "" %>
-  <%= comment.score <= -3 ? "negative_3" : "" %>
-  <%= comment.score <= -5 ? "negative_5" : "" %>">
+  <%= comment.score < Comment::SCORE_RANGE_TO_HIDE.first ? "bad" : "" %>">
+
+  <% if defined?(show_tree_lines) && show_tree_lines %>
+    <label for="comment_folder_<%= comment.short_id %>"
+      class="comment_folder"></label>
+  <% end %>
+
   <% if !comment.is_gone? %>
+    <% can_downvote = @user && @user.can_downvote?(comment) %>
+    <% score_display = comment.score_for_user(@user) %>
     <div class="voters">
       <% if @user %>
         <a class="upvoter"></a>
       <% else %>
         <%= link_to "", login_path, :class => "upvoter" %>
       <% end %>
-      <div class="score"><%= comment.score %></div>
-      <% if @user && @user.can_downvote?(comment) %>
+      <div class="score"><%= score_display %></div>
+      <% if can_downvote %>
         <a class="downvoter"></a>
       <% else %>
         <span class="downvoter downvoter_stub"></span>
       <% end %>
     </div>
+    <div class="comment_parent_tree_line
+      <%= can_downvote ? "can_downvote" : "" %>
+      <%= score_display != "&nbsp;" ? "score_shown" : "" %>
+      <%= defined?(children) && children ? "" : "no_children" %>"></div>
   <% end %>
+
   <div class="details">
     <div class="byline">
       <a name="c_<%= comment.short_id %>"></a>
 
-      <label for="comment_folder_<%= comment.short_id %>"
-        class="comment_folder"></label>
+      <% if defined?(show_tree_lines) && show_tree_lines %>
+        <label for="comment_folder_<%= comment.short_id %>"
+          class="comment_folder comment_folder_inline"></label>
+      <% else %>
+        <label for="comment_folder_<%= comment.short_id %>"
+          class="comment_folder comment_folder_inline force_inline"></label>
+      <% end %>
 
       <% if defined?(was_merged) && was_merged %>
         <span class="merge"></span>
       <% end %>
 
       <% if (@user && @user.show_avatars?) || !@user %>
-        <a href="/u/<%= comment.user.username %>"><img
-          src="<%= comment.user.avatar_url(16) %>" class="avatar"></a>
+        <a href="/u/<%= comment.user.username %>"><%=
+          avatar_img(comment.user, 16) %></a>
       <% end %>
 
       <a href="/u/<%= comment.user.username %>"
@@ -59,29 +75,35 @@ class="comment <%= comment.current_vote ? (comment.current_vote[:vote] == 1 ?
         <% elsif comment.is_from_email? %>
           e-mailed
         <% end %>
+        <% if defined?(is_unread) && is_unread %>
+          <% mark_unread = true %>
+        <% end %>
         <%= time_ago_in_words_label((comment.has_been_edited? ?
-          comment.updated_at : comment.created_at), :strip_about => true) %>
+          comment.updated_at : comment.created_at), strip_about: true, mark_unread: mark_unread) %>
       <% end %>
 
       <% if !comment.previewing %>
         |
-        <a href="<%= comment.short_id_url %>">link</a>
+        <a href="<%= comment.url %>">link</a>
 
         <% if comment.is_editable_by_user?(@user) %>
           |
-          <a class="comment_editor">edit</a>
+          <a tabindex="0" class="comment_editor">edit</a>
         <% end %>
 
         <% if comment.is_gone? && comment.is_undeletable_by_user?(@user) %>
           |
-          <a class="comment_undeletor">undelete</a>
+          <a tabindex="0" class="comment_undeletor" href="#c_<%= comment.short_id %>">undelete</a>
         <% elsif !comment.is_gone? && comment.is_deletable_by_user?(@user) %>
           |
           <% if @user && @user.is_moderator? && @user.id != comment.user_id %>
-            <a class="comment_moderator">delete</a>
+            <a tabindex="0" class="comment_moderator" href="#c_<%= comment.short_id %>">delete</a>
           <% else %>
-            <a class="comment_deletor">delete</a>
+            <a tabindex="0" class="comment_deletor" href="#c_<%= comment.short_id %>">delete</a>
           <% end %>
+        <% elsif !comment.is_gone? && comment.is_disownable_by_user?(@user) %>
+          |
+          <a tabindex="0" class="comment_disownor" href="#">disown</a>
         <% end %>
 
         <% if !comment.parent_comment_id && @user && @user.is_moderator? %>
@@ -95,19 +117,18 @@ class="comment <%= comment.current_vote ? (comment.current_vote[:vote] == 1 ?
 
         <% if @user && !comment.story.is_gone? && !comment.is_gone? %>
             |
-            <a class="comment_replier" unselectable="on">reply</a>
+            <a tabindex="0" class="comment_replier" unselectable="on">reply</a>
         <% end %>
 
         <% if defined?(show_story) && show_story %>
           | on:
-          <a href="<%= comment.story.comments_path %>"><%= comment.story.title
-            %></a>
+          <a href="<%= comment.story.comments_path %>"><%= comment.story.title %></a>
         <% end %>
 
         <span class="reason">
           <% if comment.downvotes > 0 &&
-          ((comment.score <= 0 && comment.user_id == @user.try(:id)) ||
-          @user.try("is_moderator?")) %>
+          comment.show_score_to_user?(@user) &&
+          (comment.user_id == @user.try(:id) || @user.try("is_moderator?")) %>
             | <%= comment.vote_summary_for_user(@user).downcase %>
           <% elsif comment.current_vote && comment.current_vote[:vote] == -1 %>
             | -1
@@ -120,9 +141,12 @@ class="comment <%= comment.current_vote ? (comment.current_vote[:vote] == 1 ?
       <% if comment.is_gone? %>
         <p>
         <span class="na">
-        [<%= comment.gone_text %>]
+          [<%= comment.gone_text %><% if @user && @user.is_moderator? %> Visible to moderator:<% end %>]
         </span>
         </p>
+        <% if @user && @user.is_moderator? %>
+          <%= raw comment.markeddown_comment %>
+        <% end %>
       <% else %>
         <%= raw comment.markeddown_comment %>
       <% end %>

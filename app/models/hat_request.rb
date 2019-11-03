@@ -1,10 +1,9 @@
-class HatRequest < ActiveRecord::Base
+class HatRequest < ApplicationRecord
   belongs_to :user
 
-  validates :user, :presence => true
-  validates :hat, :presence => true
-  validates :link, :presence => true
-  validates :comment, :presence => true
+  validates :hat, presence: true, length: { maximum: 255 }
+  validates :link, presence: true, length: { maximum: 255 }
+  validates :comment, presence: true, length: { maximum: 65_535 }
 
   attr_accessor :rejection_comment
 
@@ -22,7 +21,7 @@ class HatRequest < ActiveRecord::Base
       m.recipient_user_id = self.user_id
       m.subject = "Your hat \"#{self.hat}\" has been approved"
       m.body = "This hat may now be worn when commenting.\n\n" +
-        "This is an automated message."
+               "This is an automated message."
       m.save!
 
       self.destroy

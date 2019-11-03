@@ -4,26 +4,25 @@ class StoryCacher
   # this needs to be overridden in config/initializers/production.rb
   @@DIFFBOT_API_KEY = nil
 
-  DIFFBOT_API_URL = "http://www.diffbot.com/api/article"
+  DIFFBOT_API_URL = "http://www.diffbot.com/api/article".freeze
 
-  def self.get_story_text(url)
+  def self.get_story_text(story)
     if !@@DIFFBOT_API_KEY
       return
     end
 
     # XXX: diffbot tries to read pdfs as text, so disable for now
-    if url.to_s.match(/\.pdf$/i)
+    if story.url.to_s.match(/\.pdf$/i)
       return nil
     end
 
-    db_url = "#{DIFFBOT_API_URL}?token=#{@@DIFFBOT_API_KEY}&url=" <<
-      CGI.escape(url)
+    db_url = "#{DIFFBOT_API_URL}?token=#{@@DIFFBOT_API_KEY}&url=#{CGI.escape(story.url)}"
 
     begin
       s = Sponge.new
       # we're not doing this interactively, so take a while
       s.timeout = 45
-      res = s.fetch(db_url)
+      res = s.fetch(db_url).body
       if res.present?
         j = JSON.parse(res)
 
@@ -44,7 +43,7 @@ class StoryCacher
     begin
       s = Sponge.new
       s.timeout = 45
-      s.fetch("https://web.archive.org/save/#{db_url}")
+      s.fetch(story.archive_url)
     rescue => e
       Rails.logger.error "error caching #{db_url}: #{e.message}"
     end

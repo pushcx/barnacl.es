@@ -1,4 +1,3 @@
-# encoding: UTF-8
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -11,10 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170119192703) do
+ActiveRecord::Schema.define(version: 20190529133507) do
 
-  create_table "comments", force: true do |t|
-    t.datetime "created_at",                                                                    null: false
+  create_table "comments", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.datetime "created_at", null: false
     t.datetime "updated_at"
     t.string   "short_id",           limit: 10,                                 default: "",    null: false
     t.integer  "story_id",                                                                      null: false
@@ -41,113 +40,106 @@ ActiveRecord::Schema.define(version: 20170119192703) do
   create_table "hat_requests", force: true do |t|
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.integer  "user_id"
-    t.string   "hat"
-    t.string   "link"
-    t.text     "comment"
+    t.bigint "user_id", null: false, unsigned: true
+    t.string "hat"
+    t.string "link"
+    t.text "comment"
+    t.index ["user_id"], name: "hat_requests_user_id_fk"
   end
 
-  create_table "hats", force: true do |t|
+  create_table "hats", id: :bigint, unsigned: true, force: :cascade do |t|
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.integer  "user_id"
-    t.integer  "granted_by_user_id"
-    t.string   "hat"
-    t.string   "link"
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "granted_by_user_id", null: false, unsigned: true
+    t.string "hat", null: false
+    t.string "link"
+    t.boolean "modlog_use", default: false
+    t.datetime "doffed_at"
+    t.index ["granted_by_user_id"], name: "hats_granted_by_user_id_fk"
+    t.index ["user_id"], name: "hats_user_id_fk"
   end
 
-  create_table "hidden_stories", force: true do |t|
-    t.integer "user_id"
-    t.integer "story_id"
+  create_table "hidden_stories", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "story_id", null: false, unsigned: true
+    t.index ["story_id"], name: "hidden_stories_story_id_fk"
+    t.index ["user_id", "story_id"], name: "index_hidden_stories_on_user_id_and_story_id", unique: true
   end
 
-  add_index "hidden_stories", ["user_id", "story_id"], name: "index_hidden_stories_on_user_id_and_story_id", unique: true, using: :btree
-
-  create_table "invitation_requests", force: true do |t|
-    t.string   "code"
-    t.boolean  "is_verified", default: false
-    t.string   "email"
-    t.string   "name"
-    t.text     "memo"
-    t.string   "ip_address"
-    t.datetime "created_at",                  null: false
-    t.datetime "updated_at",                  null: false
+  create_table "invitation_requests", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.string "code"
+    t.boolean "is_verified", default: false
+    t.string "email"
+    t.string "name"
+    t.text "memo"
+    t.string "ip_address"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
-  create_table "invitations", force: true do |t|
-    t.integer  "user_id"
-    t.string   "email"
-    t.string   "code"
-    t.datetime "created_at",                  null: false
-    t.datetime "updated_at",                  null: false
-    t.text     "memo",       limit: 16777215
+  create_table "invitations", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "user_id", null: false, unsigned: true
+    t.string "email"
+    t.string "code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "memo", limit: 16777215
+    t.datetime "used_at"
+    t.bigint "new_user_id", unsigned: true
+    t.index ["new_user_id"], name: "invitations_new_user_id_fk"
+    t.index ["user_id"], name: "invitations_user_id_fk"
   end
 
-  create_table "keystores", id: false, force: true do |t|
-    t.string  "key",   limit: 50, default: "", null: false
-    t.integer "value", limit: 8
+  create_table "keystores", id: false, force: :cascade do |t|
+    t.string "key", limit: 50, default: "", null: false
+    t.bigint "value"
+    t.index ["key"], name: "key", unique: true
   end
 
-  add_index "keystores", ["key"], name: "key", unique: true, using: :btree
-
-  create_table "messages", force: true do |t|
+  create_table "messages", id: :bigint, unsigned: true, force: :cascade do |t|
     t.datetime "created_at"
-    t.integer  "author_user_id"
-    t.integer  "recipient_user_id"
-    t.boolean  "has_been_read",                         default: false
-    t.string   "subject",              limit: 100
-    t.text     "body",                 limit: 16777215
-    t.string   "short_id",             limit: 30
-    t.boolean  "deleted_by_author",                     default: false
-    t.boolean  "deleted_by_recipient",                  default: false
+    t.bigint "author_user_id", null: false, unsigned: true
+    t.bigint "recipient_user_id", null: false, unsigned: true
+    t.boolean "has_been_read", default: false
+    t.string "subject", limit: 100
+    t.text "body", limit: 16777215
+    t.string "short_id", limit: 30
+    t.boolean "deleted_by_author", default: false
+    t.boolean "deleted_by_recipient", default: false
+    t.bigint "hat_id", unsigned: true
+    t.index ["hat_id"], name: "index_messages_on_hat_id"
+    t.index ["recipient_user_id"], name: "messages_recipient_user_id_fk"
+    t.index ["short_id"], name: "random_hash", unique: true
   end
 
-  add_index "messages", ["short_id"], name: "random_hash", unique: true, using: :btree
-
-  create_table "moderations", force: true do |t|
-    t.datetime "created_at",                                           null: false
-    t.datetime "updated_at",                                           null: false
-    t.integer  "moderator_user_id"
-    t.integer  "story_id"
-    t.integer  "comment_id"
-    t.integer  "user_id"
-    t.text     "action",              limit: 16777215
-    t.text     "reason",              limit: 16777215
-    t.boolean  "is_from_suggestions",                  default: false
+  create_table "mod_notes", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "moderator_user_id", null: false, unsigned: true
+    t.bigint "user_id", null: false, unsigned: true
+    t.text "note", null: false
+    t.text "markeddown_note", null: false
+    t.datetime "created_at", null: false
+    t.index ["id", "user_id"], name: "index_mod_notes_on_id_and_user_id"
+    t.index ["moderator_user_id"], name: "mod_notes_moderator_user_id_fk"
+    t.index ["user_id"], name: "mod_notes_user_id_fk"
   end
 
-  create_table "stories", force: true do |t|
-    t.datetime "created_at"
-    t.integer  "user_id"
-    t.string   "url",                    limit: 250,                                default: ""
-    t.string   "title",                  limit: 150,                                default: "",    null: false
-    t.text     "description",            limit: 16777215
-    t.string   "short_id",               limit: 6,                                  default: "",    null: false
-    t.boolean  "is_expired",                                                        default: false, null: false
-    t.integer  "upvotes",                                                           default: 0,     null: false
-    t.integer  "downvotes",                                                         default: 0,     null: false
-    t.boolean  "is_moderated",                                                      default: false, null: false
-    t.decimal  "hotness",                                 precision: 20, scale: 10, default: 0.0,   null: false
-    t.text     "markeddown_description", limit: 16777215
-    t.text     "story_cache",            limit: 16777215
-    t.integer  "comments_count",                                                    default: 0,     null: false
-    t.integer  "merged_story_id"
-    t.datetime "unavailable_at"
-    t.string   "twitter_id",             limit: 20
-    t.boolean  "user_is_author",                                                    default: false
-  end
-
-  add_index "stories", ["hotness"], name: "hotness_idx", using: :btree
-  add_index "stories", ["is_expired", "is_moderated"], name: "is_idxes", using: :btree
-  add_index "stories", ["merged_story_id"], name: "index_stories_on_merged_story_id", using: :btree
-  add_index "stories", ["short_id"], name: "unique_short_id", unique: true, using: :btree
-  add_index "stories", ["twitter_id"], name: "index_stories_on_twitter_id", using: :btree
-  add_index "stories", ["url"], name: "url", length: {"url"=>191}, using: :btree
-
-  create_table "suggested_taggings", force: true do |t|
-    t.integer "story_id"
-    t.integer "tag_id"
-    t.integer "user_id"
+  create_table "moderations", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "moderator_user_id", unsigned: true
+    t.bigint "story_id", unsigned: true
+    t.bigint "comment_id", unsigned: true
+    t.bigint "user_id", unsigned: true
+    t.text "action", limit: 16777215
+    t.text "reason", limit: 16777215
+    t.boolean "is_from_suggestions", default: false
+    t.bigint "tag_id", unsigned: true
+    t.index ["comment_id"], name: "moderations_comment_id_fk"
+    t.index ["created_at"], name: "index_moderations_on_created_at"
+    t.index ["moderator_user_id"], name: "moderations_moderator_user_id_fk"
+    t.index ["story_id"], name: "moderations_story_id_fk"
+    t.index ["tag_id"], name: "moderations_tag_id_fk"
   end
 
   create_table "suggested_titles", force: true do |t|
@@ -156,32 +148,89 @@ ActiveRecord::Schema.define(version: 20170119192703) do
     t.string  "title",    limit: 150, default: "", null: false
   end
 
-  create_table "tag_filters", force: true do |t|
+  create_table "saved_stories", id: :bigint, unsigned: true, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer  "user_id"
-    t.integer  "tag_id"
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "story_id", null: false, unsigned: true
+    t.index ["story_id"], name: "saved_stories_story_id_fk"
+    t.index ["user_id", "story_id"], name: "index_saved_stories_on_user_id_and_story_id", unique: true
   end
 
-  add_index "tag_filters", ["user_id", "tag_id"], name: "user_tag_idx", using: :btree
-
-  create_table "taggings", force: true do |t|
-    t.integer "story_id", null: false
-    t.integer "tag_id",   null: false
+  create_table "stories", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.datetime "created_at"
+    t.bigint "user_id", null: false, unsigned: true
+    t.string "url", limit: 250, default: ""
+    t.string "title", limit: 150, default: "", null: false
+    t.text "description", limit: 16777215
+    t.string "short_id", limit: 6, default: "", null: false
+    t.boolean "is_expired", default: false, null: false
+    t.integer "upvotes", default: 0, null: false, unsigned: true
+    t.integer "downvotes", default: 0, null: false, unsigned: true
+    t.boolean "is_moderated", default: false, null: false
+    t.decimal "hotness", precision: 20, scale: 10, default: "0.0", null: false
+    t.text "markeddown_description", limit: 16777215
+    t.text "story_cache", limit: 16777215
+    t.integer "comments_count", default: 0, null: false
+    t.bigint "merged_story_id", unsigned: true
+    t.datetime "unavailable_at"
+    t.string "twitter_id", limit: 20
+    t.boolean "user_is_author", default: false
+    t.boolean "user_is_following", default: false, null: false
+    t.index ["created_at"], name: "index_stories_on_created_at"
+    t.index ["hotness"], name: "hotness_idx"
+    t.index ["is_expired", "is_moderated"], name: "is_idxes"
+    t.index ["is_expired"], name: "index_stories_on_is_expired"
+    t.index ["is_moderated"], name: "index_stories_on_is_moderated"
+    t.index ["merged_story_id"], name: "index_stories_on_merged_story_id"
+    t.index ["short_id"], name: "unique_short_id", unique: true
+    t.index ["twitter_id"], name: "index_stories_on_twitter_id"
+    t.index ["url"], name: "url", length: 191
+    t.index ["user_id"], name: "index_stories_on_user_id"
   end
 
-  add_index "taggings", ["story_id", "tag_id"], name: "story_id_tag_id", unique: true, using: :btree
-
-  create_table "tags", force: true do |t|
-    t.string  "tag",         limit: 25,  default: "",    null: false
-    t.string  "description", limit: 100
-    t.boolean "privileged",              default: false
-    t.boolean "is_media",                default: false
-    t.boolean "inactive",                default: false
-    t.float   "hotness_mod", limit: 24,  default: 0.0
+  create_table "suggested_taggings", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "story_id", null: false, unsigned: true
+    t.bigint "tag_id", null: false, unsigned: true
+    t.bigint "user_id", null: false, unsigned: true
+    t.index ["story_id"], name: "suggested_taggings_story_id_fk"
+    t.index ["tag_id"], name: "suggested_taggings_tag_id_fk"
+    t.index ["user_id"], name: "suggested_taggings_user_id_fk"
   end
 
-  add_index "tags", ["tag"], name: "tag", unique: true, using: :btree
+  create_table "suggested_titles", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "story_id", null: false, unsigned: true
+    t.bigint "user_id", null: false, unsigned: true
+    t.string "title", limit: 150, default: "", null: false
+    t.index ["story_id"], name: "suggested_titles_story_id_fk"
+    t.index ["user_id"], name: "suggested_titles_user_id_fk"
+  end
+
+  create_table "tag_filters", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "tag_id", null: false, unsigned: true
+    t.index ["tag_id"], name: "tag_filters_tag_id_fk"
+    t.index ["user_id", "tag_id"], name: "user_tag_idx"
+  end
+
+  create_table "taggings", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "story_id", null: false, unsigned: true
+    t.bigint "tag_id", null: false, unsigned: true
+    t.index ["story_id", "tag_id"], name: "story_id_tag_id", unique: true
+    t.index ["tag_id"], name: "taggings_tag_id_fk"
+  end
+
+  create_table "tags", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.string "tag", limit: 25, null: false
+    t.string "description", limit: 100
+    t.boolean "privileged", default: false
+    t.boolean "is_media", default: false
+    t.boolean "inactive", default: false
+    t.float "hotness_mod", default: 0.0
+    t.index ["tag"], name: "tag", unique: true
+  end
 
   create_table "users", force: true do |t|
     t.string   "username",                         limit: 50
@@ -219,22 +268,74 @@ ActiveRecord::Schema.define(version: 20170119192703) do
     t.text     "settings"
   end
 
-  add_index "users", ["mailing_list_mode"], name: "mailing_list_enabled", using: :btree
-  add_index "users", ["mailing_list_token"], name: "mailing_list_token", unique: true, using: :btree
-  add_index "users", ["password_reset_token"], name: "password_reset_token", unique: true, using: :btree
-  add_index "users", ["rss_token"], name: "rss_token", unique: true, using: :btree
-  add_index "users", ["session_token"], name: "session_hash", unique: true, using: :btree
-  add_index "users", ["username"], name: "username", unique: true, using: :btree
-
-  create_table "votes", force: true do |t|
-    t.integer "user_id",              null: false
-    t.integer "story_id",             null: false
-    t.integer "comment_id"
-    t.integer "vote",       limit: 1, null: false
-    t.string  "reason",     limit: 1
+  create_table "votes", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "story_id", null: false, unsigned: true
+    t.bigint "comment_id", unsigned: true
+    t.integer "vote", limit: 1, null: false
+    t.string "reason", limit: 1
+    t.datetime "updated_at", null: false
+    t.index ["comment_id"], name: "index_votes_on_comment_id"
+    t.index ["story_id"], name: "votes_story_id_fk"
+    t.index ["user_id", "comment_id"], name: "user_id_comment_id"
+    t.index ["user_id", "story_id"], name: "user_id_story_id"
   end
 
-  add_index "votes", ["user_id", "comment_id"], name: "user_id_comment_id", using: :btree
-  add_index "votes", ["user_id", "story_id"], name: "user_id_story_id", using: :btree
+  add_foreign_key "comments", "comments", column: "parent_comment_id", name: "comments_parent_comment_id_fk"
+  add_foreign_key "comments", "hats", name: "comments_hat_id_fk"
+  add_foreign_key "comments", "stories", name: "comments_story_id_fk"
+  add_foreign_key "comments", "users", name: "comments_user_id_fk"
+  add_foreign_key "hat_requests", "users", name: "hat_requests_user_id_fk"
+  add_foreign_key "hats", "users", column: "granted_by_user_id", name: "hats_granted_by_user_id_fk"
+  add_foreign_key "hats", "users", name: "hats_user_id_fk"
+  add_foreign_key "hidden_stories", "stories", name: "hidden_stories_story_id_fk"
+  add_foreign_key "hidden_stories", "users", name: "hidden_stories_user_id_fk"
+  add_foreign_key "invitations", "users", column: "new_user_id", name: "invitations_new_user_id_fk"
+  add_foreign_key "invitations", "users", name: "invitations_user_id_fk"
+  add_foreign_key "messages", "hats", name: "messages_hat_id_fk"
+  add_foreign_key "messages", "users", column: "recipient_user_id", name: "messages_recipient_user_id_fk"
+  add_foreign_key "mod_notes", "users", column: "moderator_user_id", name: "mod_notes_moderator_user_id_fk"
+  add_foreign_key "mod_notes", "users", name: "mod_notes_user_id_fk"
+  add_foreign_key "moderations", "comments", name: "moderations_comment_id_fk"
+  add_foreign_key "moderations", "stories", name: "moderations_story_id_fk"
+  add_foreign_key "moderations", "tags", name: "moderations_tag_id_fk"
+  add_foreign_key "moderations", "users", column: "moderator_user_id", name: "moderations_moderator_user_id_fk"
+  add_foreign_key "saved_stories", "stories", name: "saved_stories_story_id_fk"
+  add_foreign_key "saved_stories", "users", name: "saved_stories_user_id_fk"
+  add_foreign_key "stories", "stories", column: "merged_story_id", name: "stories_merged_story_id_fk"
+  add_foreign_key "stories", "users", name: "stories_user_id_fk"
+  add_foreign_key "suggested_taggings", "stories", name: "suggested_taggings_story_id_fk"
+  add_foreign_key "suggested_taggings", "tags", name: "suggested_taggings_tag_id_fk"
+  add_foreign_key "suggested_taggings", "users", name: "suggested_taggings_user_id_fk"
+  add_foreign_key "suggested_titles", "stories", name: "suggested_titles_story_id_fk"
+  add_foreign_key "suggested_titles", "users", name: "suggested_titles_user_id_fk"
+  add_foreign_key "tag_filters", "tags", name: "tag_filters_tag_id_fk"
+  add_foreign_key "tag_filters", "users", name: "tag_filters_user_id_fk"
+  add_foreign_key "taggings", "stories", name: "taggings_story_id_fk"
+  add_foreign_key "taggings", "tags", name: "taggings_tag_id_fk", on_update: :cascade, on_delete: :cascade
+  add_foreign_key "users", "users", column: "banned_by_user_id", name: "users_banned_by_user_id_fk"
+  add_foreign_key "users", "users", column: "disabled_invite_by_user_id", name: "users_disabled_invite_by_user_id_fk"
+  add_foreign_key "users", "users", column: "invited_by_user_id", name: "users_invited_by_user_id_fk"
+  add_foreign_key "votes", "comments", name: "votes_comment_id_fk", on_update: :cascade, on_delete: :cascade
+  add_foreign_key "votes", "stories", name: "votes_story_id_fk"
+  add_foreign_key "votes", "users", name: "votes_user_id_fk"
+
+  create_table "read_ribbons", id: :bigint, unsigned: true, force: :cascade do |t|
+    t.boolean "is_following", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false, unsigned: true
+    t.bigint "story_id", null: false, unsigned: true
+    t.index ["story_id"], name: "index_read_ribbons_on_story_id"
+    t.index ["user_id"], name: "index_read_ribbons_on_user_id"
+  end
+
+
+
+  create_view "replying_comments",  sql_definition: <<-SQL
+      select read_ribbons.user_id AS user_id,comments.id AS comment_id,read_ribbons.story_id AS story_id,comments.parent_comment_id AS parent_comment_id,comments.created_at AS comment_created_at,parent_comments.user_id AS parent_comment_author_id,comments.user_id AS comment_author_id,stories.user_id AS story_author_id,read_ribbons.updated_at < comments.created_at AS is_unread,(select votes.vote from votes where votes.user_id = read_ribbons.user_id and votes.comment_id = comments.id) AS current_vote_vote,(select votes.reason from votes where votes.user_id = read_ribbons.user_id and votes.comment_id = comments.id) AS current_vote_reason from (((read_ribbons join comments on(comments.story_id = read_ribbons.story_id)) join stories on(stories.id = comments.story_id)) left join comments parent_comments on(parent_comments.id = comments.parent_comment_id)) where read_ribbons.is_following = true and comments.user_id <> read_ribbons.user_id and comments.is_deleted = false and comments.is_moderated = false and (parent_comments.user_id = read_ribbons.user_id or parent_comments.user_id is null and stories.user_id = read_ribbons.user_id) and comments.upvotes - comments.downvotes >= 0 and (parent_comments.id is null or parent_comments.upvotes - parent_comments.downvotes >= 0 and parent_comments.is_moderated = false and parent_comments.is_deleted = false) and not exists(select 1 from (votes f join comments c on(f.comment_id = c.id)) where f.vote < 0 and f.user_id = parent_comments.user_id and c.user_id = comments.user_id and f.story_id = comments.story_id) and stories.upvotes - stories.downvotes >= 0
+  SQL
+  add_foreign_key "read_ribbons", "stories", name: "read_ribbons_story_id_fk"
+  add_foreign_key "read_ribbons", "users", name: "read_ribbons_user_id_fk"
 
 end

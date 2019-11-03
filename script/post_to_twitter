@@ -2,38 +2,35 @@
 
 ENV["RAILS_ENV"] ||= "production"
 
-APP_PATH = File.expand_path('../../config/application',  __FILE__)
-require File.expand_path('../../config/boot',  __FILE__)
+APP_PATH = File.expand_path('../../config/application', __FILE__)
+require File.expand_path('../../config/boot', __FILE__)
 require APP_PATH
 Rails.application.require_environment!
 
-MIN_STORY_SCORE = 2
-
-Story.where("is_expired = ? AND #{Story.score_sql} > ? AND " <<
-"twitter_id IS NULL AND created_at >= ?", false, MIN_STORY_SCORE,
-Time.now - 1.days).order(:id).each_with_index do |s,x|
-  if s.tags.map(&:tag).include?("meta")
-    next
-  end
-
+Story.to_tweet.each_with_index do |s, x|
   if x > 0
     sleep 2
   end
 
-  tags = ""
-  s.sorted_taggings.each do |tagging|
-    tags += ' #' + tagging.tag.tag
+  tags = s.tags.pluck(:tag).map {|t| ' #' + t }.join('')
+
+  via = ""
+  if s.user.twitter_username.present?
+    via = "\n" +
+          (s.user_is_author? ? "by" : "via") +
+          " @#{s.user.twitter_username}"
   end
 
-  tco_status = "\n" +
-    (s.url.present?? ("X" * Twitter::TCO_LEN) + "\n" : "") +
-    ("X" * Twitter::TCO_LEN) +
-    tags
+  tco_status = via +
+               "\n" +
+               ("X" * Twitter::TCO_LEN) + tags +
+               (s.url.present? ? "\n" + ("X" * Twitter::TCO_LEN) : "")
 
-  status = "\n" +
-    (s.url.present?? s.url + "\n" : "") +
-    s.short_id_url +
-    tags
+  status = via +
+           "\n" +
+           s.short_id_url +
+           tags +
+           (s.url.present? ? "\n" + s.url : "")
 
   left_len = Twitter::MAX_TWEET_LEN - tco_status.length
 
@@ -46,8 +43,10 @@ Time.now - 1.days).order(:id).each_with_index do |s,x|
 
   # if there are any urls in the title, they should be sized (at least) to a
   # twitter t.co url
-  left_len -= (title.scan(/[^ ]\.[a-z]{2,10}/i).map{|u| [ 0,
-    Twitter::TCO_LEN ].max }.inject(:+)).to_i
+  left_len -= title.scan(/[^ ]\.[a-z]{2,10}/i)
+                   .map {|_u| [0, Twitter::TCO_LEN].max }
+                   .inject(:+)
+                   .to_i
 
   if left_len < -3
     left_len = -3
@@ -59,23 +58,20 @@ Time.now - 1.days).order(:id).each_with_index do |s,x|
     status = title + status
   end
 
-  res = Twitter.oauth_request("/1.1/statuses/update.json", :post,
-    { "status" => status })
+  res = Twitter.oauth_request("/1.1/statuses/update.json", :post, "status" => status)
 
   begin
     if res["id_str"].to_s.match(/\d+/)
       s.update_column("twitter_id", res["id_str"])
-    elsif res["errors"].select{|e| e["code"] == 226 }.any?
+    elsif res["errors"].select {|e| e["code"] == 226 || e["code"] == 186 }.any?
       # twitter is rejecting the content of this message, skip it
       s.update_column("twitter_id", 0)
-      puts "skipping: failed posting story #{s.id} (#{status.inspect}): " +
-        "#{res.inspect}\n"
+      puts "skipping: failed posting story #{s.id} (#{status.inspect}): #{res.inspect}\n"
     else
       raise
     end
   rescue => e
-    puts "failed posting story #{s.id} (#{status.inspect}): #{e.inspect}\n" +
-      "#{res.inspect}"
+    puts "failed posting story #{s.id} (#{status.inspect}): #{e.inspect}\n#{res.inspect}"
     exit
   end
 end

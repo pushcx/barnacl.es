@@ -16,7 +16,7 @@
     </p>
   <% end %>
 
-  <%= form_tag "/filters", :method => :post do %>
+  <%= form_with url: '/filters', method: :post, local: true do |f| %>
     <table class="data zebra" cellspacing=0 width="75%">
     <tr>
       <th width="7%">Hide</th>
@@ -28,7 +28,7 @@
       <tr>
         <td><%= check_box_tag "tags[]", tag.tag,
           @filtered_tags.include?(tag) %></td>
-        <td><%= link_to tag.tag, tag_path(tag), :class => tag.css_class %></td>
+        <td><%= tag_link(tag) %></td>
         <td><%= tag.description %>
           <% if tag.hotness_mod != 0 %>
             &nbsp;
@@ -41,7 +41,7 @@
     <% end %>
     </table>
     <p>
-    <%= submit_tag "Save Filters" %>
+    <%= f.submit "Save Filters" %>
     </p>
   <% end %>
 </div>

@@ -1,22 +1,22 @@
-require "spec_helper"
+require "rails_helper"
 
 describe EmailParser do
   before(:each) do
-    @user = User.make!
-    @story = Story.make!(:user => @user)
+    @user = create(:user)
+    @story = create(:story, :user => @user)
 
-    @commentor = User.make!
-    @comment = Comment.make!(:story => @story, :user => @commentor)
+    @commentor = create(:user)
+    @comment = create(:comment, :story => @story, :user => @commentor)
 
-    @emailer = User.make!(:mailing_list_mode => 1)
+    @emailer = create(:user, :mailing_list_mode => 1)
 
     @emails = {}
-    Dir.glob("#{Rails.root}/spec/fixtures/inbound_emails/*.eml").
-    each do |f|
-      @emails[File.basename(f).gsub(/\..*/, "")] = File.read(f).
-        gsub(/##SHORTNAME##/, Rails.application.shortname).
-        gsub(/##MAILING_LIST_TOKEN##/, @emailer.mailing_list_token).
-        gsub(/##COMMENT_ID##/, @comment.short_id)
+    Dir.glob("#{Rails.root}/spec/fixtures/inbound_emails/*.eml")
+    .each do |f|
+      @emails[File.basename(f).gsub(/\..*/, "")] = File.read(f)
+        .gsub(/##SHORTNAME##/, Rails.application.shortname)
+        .gsub(/##MAILING_LIST_TOKEN##/, @emailer.mailing_list_token)
+        .gsub(/##COMMENT_ID##/, @comment.short_id)
     end
   end
 
@@ -27,14 +27,14 @@ describe EmailParser do
       "-#{@emailer.mailing_list_token}@example.org",
       @emails["1"])
 
-    parser.should_not == nil
-    parser.email.should_not == nil
+    expect(parser).to_not be_nil
+    expect(parser.email).to_not be_nil
 
-    parser.user_token.should == @emailer.mailing_list_token
-    parser.been_here?.should == false
-    parser.sending_user.id.should == @emailer.id
+    expect(parser.user_token).to eq(@emailer.mailing_list_token)
+    expect(parser.been_here?).to be false
+    expect(parser.sending_user.id).to eq(@emailer.id)
 
-    parser.parent.class.should == Comment
+    expect(parser.parent.class).to be Comment
   end
 
   it "rejects mailing loops" do
@@ -44,8 +44,8 @@ describe EmailParser do
       "-#{@emailer.mailing_list_token}@example.org",
       @emails["2"])
 
-    parser.email.should_not == nil
-    parser.been_here?.should == true
+    expect(parser.email).to_not be_nil
+    expect(parser.been_here?).to be true
   end
 
   it "strips signatures" do
@@ -55,8 +55,10 @@ describe EmailParser do
       "-#{@emailer.mailing_list_token}@example.org",
       @emails["3"])
 
-    parser.email.should_not == nil
-    parser.body.should == "It hasn't decreased any measurable amount but since the traffic to\nthe site is increasing a bit each week, it's hard to tell."
+    expect(parser.email).to_not be_nil
+    expect(parser.body)
+      .to eq("It hasn't decreased any measurable amount but since the traffic to\n" <<
+             "the site is increasing a bit each week, it's hard to tell.")
   end
 
   it "strips quoted lines with attribution" do
@@ -66,7 +68,9 @@ describe EmailParser do
       "-#{@emailer.mailing_list_token}@example.org",
       @emails["4"])
 
-    parser.email.should_not == nil
-    parser.body.should == "It hasn't decreased any measurable amount but since the traffic to\nthe site is increasing a bit each week, it's hard to tell."
+    expect(parser.email).to_not be_nil
+    expect(parser.body)
+      .to eq("It hasn't decreased any measurable amount but since the traffic to\n" <<
+             "the site is increasing a bit each week, it's hard to tell.")
   end
 end

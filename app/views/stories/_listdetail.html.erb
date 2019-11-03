@@ -1,3 +1,7 @@
+<%#
+  The h-entry, u-report-of, u-url and h-card css classes are necessary
+  for the webmentions support. http://microformats.org/wiki/h-entry
+%>
 <li id="story_<%= story.short_id %>" data-shortid="<%= story.short_id %>"
 class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
 <%= story.vote && story.vote[:vote] == -1 ? "downvoted" : "" %>
@@ -5,20 +9,21 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
 <%= story.score <= -3 ? "negative_3" : "" %>
 <%= story.score <= -5 ? "negative_5" : "" %>
 <%= story.is_hidden_by_cur_user ? "hidden" : "" %>
+<%= story.is_saved_by_cur_user ? "saved" : "" %>
 <%= story.is_expired? ? "expired" : "" %>">
-<div class="story_liner">
+<div class="story_liner h-entry">
   <div class="voters">
     <% if @user %>
-      <a class="upvoter"></a>
+      <a class="upvoter" title="Add upvote"></a>
     <% else %>
       <%= link_to "", login_path, :class => "upvoter" %>
     <% end %>
-    <div class="score"><%= story.score %></div>
+    <div class="score"><%= story.show_score_to_user?(@user) ? story.score : '~' %></div>
   </div>
   <div class="details">
-    <span class="link">
+    <span class="link h-cite u-repost-of">
       <% if story.can_be_seen_by_user?(@user) %>
-        <a href="<%= story.url_or_comments_path %>"><%=
+        <a class="u-url" href="<%= story.url_or_comments_path %>"><%=
           break_long_words(story.title) %></a>
       <% end %>
       <% if story.is_gone? %>
@@ -27,15 +32,13 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
       <% end %>
     </span>
     <% if story.markeddown_description.present? %>
-      <a class="description_present" title="Additional text available"
-        href="<%= story.comments_path %>">&#x2636;</a>
+      <a class="description_present" title="<%= truncate(story.description,
+        :length => 500) %>" href="<%= story.comments_path %>">&#x2636;</a>
     <% end %>
     <% if story.can_be_seen_by_user?(@user) %>
       <span class="tags">
-        <% story.sorted_taggings.each do |tagging| %>
-          <a href="<%= tag_path(tagging.tag.tag) %>"
-            class="<%= tagging.tag.css_class %>"
-            title="<%= tagging.tag.description %>"><%= tagging.tag.tag %></a>
+        <% story.tags.each do |tag| %>
+          <%= tag_link(tag) %>
         <% end %>
       </span>
       <% if story.domain.present? %>
@@ -44,7 +47,7 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
       <% end %>
 
       <% if defined?(single_story) && single_story %>
-        <% story.merged_stories.each do |ms| %>
+        <% story.merged_stories.not_deleted.includes(:user, :tags).each do |ms| %>
           <br>
           <span class="merge"></span>
           <span class="link">
@@ -52,10 +55,10 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
               break_long_words(ms.title) %></a>
           </span>
           <span class="tags">
-            <% ms.sorted_taggings.each do |tagging| %>
-              <a href="<%= tag_path(tagging.tag.tag) %>"
-                class="<%= tagging.tag.css_class %>"
-                title="<%= tagging.tag.description %>"><%= tagging.tag.tag %></a>
+            <% ms.tags.each do |tag| %>
+              <a href="<%= tag_path(tag) %>"
+                class="<%= tag.css_class %>"
+                title="<%= tag.description %>"><%= tag.tag %></a>
             <% end %>
           </span>
           <% if ms.domain.present? %>
@@ -64,20 +67,22 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
           <% end %>
           <span class="byline">
             <% if (@user && @user.show_avatars?) || !@user %>
-              <a href="/u/<%= ms.user.username %>"><img
-                src="<%= ms.user.avatar_url(16) %>"
-                srcset="<%= ms.user.avatar_url(16) %> 1x,
-                <%= ms.user.avatar_url(32) %> 2x" class="avatar"></a>
+              <a href="/u/<%= ms.user.username %>"><%=
+                avatar_img(ms.user, 16) %></a>
             <% end %>
             <% if story.user_is_author? %>
               authored by
             <% else %>
               via
             <% end %>
-            <a href="/u/<%= ms.user.username %>" class="<%=
+            <a href="/u/<%= ms.user.username %>" class="u-author h-card <%=
               ms.html_class_for_user %>"><%= ms.user.username %></a>
 
-            <%= time_ago_in_words_label(ms.created_at, :strip_about => true) %>
+            <%= time_ago_in_words_label(ms.created_at) %>
+            <% if ms.is_editable_by_user?(@user) %>
+              |
+              <a href="<%= edit_story_path(ms.short_id) %>">edit</a>
+            <% end %>
           </span>
         <% end %>
       <% end %>
@@ -94,10 +99,8 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
 
     <div class="byline">
       <% if (@user && @user.show_avatars?) || !@user %>
-        <a href="/u/<%= story.user.username %>"><img
-          src="<%= story.user.avatar_url(16) %>"
-          srcset="<%= story.user.avatar_url(16) %> 1x,
-          <%= story.user.avatar_url(32) %> 2x" class="avatar"></a>
+        <a href="/u/<%= story.user.username %>"><%=
+          avatar_img(story.user, 16) %></a>
       <% end %>
       <% if story.previewing %>
         <% if story.user_is_author? %>
@@ -105,7 +108,7 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
         <% else %>
           via
         <% end %>
-        <a class="<%= story.html_class_for_user %>"><%=
+        <a class="u-author h-card <%= story.html_class_for_user %>"><%=
           story.user.username %></a>
         just now
       <% else %>
@@ -114,32 +117,15 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
         <% else %>
           via
         <% end %>
-        <a href="/u/<%= story.user.username %>" class="<%=
+        <a href="/u/<%= story.user.username %>" class="u-author h-card <%=
           story.html_class_for_user %>"><%= story.user.username %></a>
 
-        <%= time_ago_in_words_label(story.created_at, :strip_about => true) %>
+        <%= time_ago_in_words_label(story.created_at) %>
 
         <% if story.is_editable_by_user?(@user) %>
           |
-          <a href="<%= edit_story_path(story.short_id) %>">edit</a>
-
-          <% if story.is_gone? && story.is_undeletable_by_user?(@user) %>
-            |
-            <%= link_to "undelete", story_undelete_path(story.short_id),
-              :method => :post, :data => {
-              :confirm => "Are you sure you want to undelete this story?" } %>
-          <% elsif !story.is_gone? %>
-            |
-            <% if story.user_id != @user.try(:id) &&
-            @user.try(:is_moderator?) %>
-              <%= link_to "delete", story_path(story.short_id),
-                :method => :delete, :class => "mod_story_link" %>
-            <% else %>
-              <%= link_to "delete", story_path(story.short_id),
-                :method => :delete, :data => {
-                :confirm => "Are you sure you want to delete this story?" } %>
-            <% end %>
-          <% end %>
+          <a href="<%= edit_story_path(story.short_id) %>" class="<%=
+            story.has_suggestions? ? "story_has_suggestions" : "" %>">edit</a>
         <% end %>
         <% if story.can_have_suggestions_from_user?(@user) %>
           | <%= link_to "suggest", story_suggest_path(story.short_id),
@@ -162,10 +148,17 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
           <% if defined?(single_story) && single_story && story.hider_count > 0 %>
             (hidden by <%= pluralize(story.hider_count, "user") %>)
           <% end %>
+          <% if story.is_saved_by_cur_user %>
+            | <%= link_to "unsave", story_unsave_path(story.short_id),
+              :class => "saver" %>
+          <% else %>
+            | <%= link_to "save", story_save_path(story.short_id),
+              :class => "saver" %>
+          <% end %>
         <% end %>
         <% if story.url.present? %>
           |
-          <a href="https://web.archive.org/web/<%= story.url %>" rel="nofollow"
+          <a href="<%= story.archive_url %>" rel="nofollow"
             target="_blank">cached</a>
         <% end %>
         <% if !story.is_gone? %>
@@ -173,12 +166,10 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
             |
             <a href="<%= story.comments_path %>">
             <% if story.comments_count == 0 %>
-              no comments
+              no comments</a>
             <% else %>
-              <%= story.comments_count %>
-                comment<%= story.comments_count == 1 ? "" : "s" %>
+              <%= story.comments_count %> <%= 'comment'.pluralize(story.comments_count) %></a>
             <% end %>
-            </a>
           </span>
         <% end %>
 
@@ -191,8 +182,7 @@ class="story <%= story.vote && story.vote[:vote] == 1 ? "upvoted" : "" %>
     </div>
   </div>
 </div>
-<div class="mobile_comments <%= story.comments_count == 0 ? "zero" : "" %>"
-style="display: none;">
-  <a href="<%= story.comments_path %>"><%= story.comments_count %></a>
-</div>
+<a href="<%= story.comments_path %>" class="mobile_comments <%= story.comments_count == 0 ? "zero" : "" %>" style="display: none;">
+  <span><%= story.comments_count %></span>
+</a>
 </li>

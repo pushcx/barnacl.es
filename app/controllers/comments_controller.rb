@@ -1,43 +1,44 @@
 class CommentsController < ApplicationController
   COMMENTS_PER_PAGE = 20
 
-  # for rss feeds, load the user's tag filters if a token is passed
-  before_filter :find_user_from_rss_token, :only => [ :index ]
-  before_filter :require_logged_in_user_or_400,
-    :only => [ :create, :preview, :upvote, :downvote, :unvote ]
+  caches_page :index, :threads, if: CACHE_PAGE
+
+  before_action :require_logged_in_user_or_400,
+                :only => [:create, :preview, :upvote, :downvote, :unvote]
+  before_action :require_logged_in_user, :only => [:upvoted]
 
   # for rss feeds, load the user's tag filters if a token is passed
-  before_filter :find_user_from_rss_token, :only => [ :index ]
+  before_action :find_user_from_rss_token, :only => [:index]
 
   def create
     if !(story = Story.where(:short_id => params[:story_id]).first) ||
-    story.is_gone?
-      return render :text => "can't find story", :status => 400
+       story.is_gone?
+      return render :plain => "can't find story", :status => 400
     end
 
     comment = story.comments.build
     comment.comment = params[:comment].to_s
     comment.user = @user
 
-    if params[:hat_id] && @user.hats.where(:id => params[:hat_id])
+    if params[:hat_id] && @user.wearable_hats.where(:id => params[:hat_id])
       comment.hat_id = params[:hat_id]
     end
 
     if params[:parent_comment_short_id].present?
-      if pc = Comment.where(:story_id => story.id, :short_id =>
-      params[:parent_comment_short_id]).first
+      if (pc = Comment.where(:story_id => story.id, :short_id => params[:parent_comment_short_id])
+        .first)
         comment.parent_comment = pc
       else
-        return render :json => { :error => "invalid parent comment",
-          :status => 400 }
+        return render :json => { :error => "invalid parent comment", :status => 400 }
       end
     end
 
     # prevent double-clicks of the post button
     if params[:preview].blank? &&
-    (pc = Comment.where(:story_id => story.id, :user_id => @user.id,
-      :parent_comment_id => comment.parent_comment_id).first)
-      if (Time.now - pc.created_at) < 5.minutes
+       (pc = Comment.where(:story_id => story.id,
+                           :user_id => @user.id,
+                           :parent_comment_id => comment.parent_comment_id).first)
+      if (Time.current - pc.created_at) < 5.minutes && !@user.is_moderator?
         comment.errors.add(:comment, "^You have already posted a comment " <<
           "here recently.")
 
@@ -49,8 +50,12 @@ class CommentsController < ApplicationController
     if comment.valid? && params[:preview].blank? && comment.save
       comment.current_vote = { :vote => 1 }
 
-      render :partial => "comments/postedreply", :layout => false,
-        :content_type => "text/html", :locals => { :comment => comment }
+      if request.xhr?
+        render :partial => "comments/postedreply", :layout => false,
+          :content_type => "text/html", :locals => { :comment => comment }
+      else
+        redirect_to comment.path
+      end
     else
       comment.upvotes = 1
       comment.current_vote = { :vote => 1 }
@@ -61,32 +66,37 @@ class CommentsController < ApplicationController
 
   def show
     if !((comment = find_comment) && comment.is_editable_by_user?(@user))
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
-    render :partial => "comment", :layout => false,
-      :content_type => "text/html", :locals => { :comment => comment }
+    render :partial => "comment",
+           :layout => false,
+           :content_type => "text/html",
+           :locals => {
+             :comment => comment,
+             :show_tree_lines => params[:show_tree_lines],
+           }
   end
 
   def show_short_id
     if !(comment = find_comment)
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     render :json => comment.as_json
   end
 
   def redirect_from_short_id
-    if comment = find_comment
-      return redirect_to comment.url
+    if (comment = find_comment)
+      return redirect_to comment.path
     else
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
   end
 
   def edit
     if !((comment = find_comment) && comment.is_editable_by_user?(@user))
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     render :partial => "commentbox", :layout => false,
@@ -95,7 +105,7 @@ class CommentsController < ApplicationController
 
   def reply
     if !(parent_comment = find_comment)
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     comment = Comment.new
@@ -108,7 +118,7 @@ class CommentsController < ApplicationController
 
   def delete
     if !((comment = find_comment) && comment.is_deletable_by_user?(@user))
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     comment.delete_for_user(@user, params[:reason])
@@ -119,7 +129,7 @@ class CommentsController < ApplicationController
 
   def undelete
     if !((comment = find_comment) && comment.is_undeletable_by_user?(@user))
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     comment.undelete_for_user(@user)
@@ -128,44 +138,37 @@ class CommentsController < ApplicationController
       :content_type => "text/html", :locals => { :comment => comment }
   end
 
-  def dragon
-    if !((comment = find_comment) && @user.is_moderator?)
-      return render :text => "can't find comment", :status => 400
+  def disown
+    if !((comment = find_comment) && comment.is_disownable_by_user?(@user))
+      return render :plain => "can't find comment", :status => 400
     end
 
-    comment.become_dragon_for_user(@user)
+    InactiveUser.disown! comment
+    comment = find_comment
 
-    render :text => "ok"
-  end
-
-  def undragon
-    if !((comment = find_comment) && @user.is_moderator?)
-      return render :text => "can't find comment", :status => 400
-    end
-
-    comment.remove_dragon_for_user(@user)
-
-    render :text => "ok"
+    render :partial => "comment", :layout => false,
+      :content_type => "text/html", :locals => { :comment => comment }
   end
 
   def update
     if !((comment = find_comment) && comment.is_editable_by_user?(@user))
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     comment.comment = params[:comment]
     comment.hat_id = nil
-    if params[:hat_id] && @user.hats.where(:id => params[:hat_id])
+    if params[:hat_id] && @user.wearable_hats.where(:id => params[:hat_id])
       comment.hat_id = params[:hat_id]
     end
 
     if params[:preview].blank? && comment.save
-      votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id,
-        [comment.id])
+      votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id, [comment.id])
       comment.current_vote = votes[comment.id]
 
-      render :partial => "comments/comment", :layout => false,
-        :content_type => "text/html", :locals => { :comment => comment }
+      render :partial => "comments/comment",
+             :layout => false,
+             :content_type => "text/html",
+             :locals => { :comment => comment, :show_tree_lines => params[:show_tree_lines] }
     else
       comment.current_vote = { :vote => 1 }
 
@@ -175,48 +178,53 @@ class CommentsController < ApplicationController
 
   def unvote
     if !(comment = find_comment)
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
-    Vote.vote_thusly_on_story_or_comment_for_user_because(0, comment.story_id,
-      comment.id, @user.id, nil)
+    Vote.vote_thusly_on_story_or_comment_for_user_because(
+      0, comment.story_id, comment.id, @user.id, nil
+    )
 
-    render :text => "ok"
+    render :plain => "ok"
   end
 
   def upvote
     if !(comment = find_comment)
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
-    Vote.vote_thusly_on_story_or_comment_for_user_because(1, comment.story_id,
-      comment.id, @user.id, params[:reason])
+    Vote.vote_thusly_on_story_or_comment_for_user_because(
+      1, comment.story_id, comment.id, @user.id, params[:reason]
+    )
 
-    render :text => "ok"
+    render :plain => "ok"
   end
 
   def downvote
     if !(comment = find_comment)
-      return render :text => "can't find comment", :status => 400
+      return render :plain => "can't find comment", :status => 400
     end
 
     if !Vote::COMMENT_REASONS[params[:reason]]
-      return render :text => "invalid reason", :status => 400
+      return render :plain => "invalid reason", :status => 400
     end
 
     if !@user.can_downvote?(comment)
-      return render :text => "not permitted to downvote", :status => 400
+      return render :plain => "not permitted to downvote", :status => 400
     end
 
-    Vote.vote_thusly_on_story_or_comment_for_user_because(-1, comment.story_id,
-      comment.id, @user.id, params[:reason])
+    Vote.vote_thusly_on_story_or_comment_for_user_because(
+      -1, comment.story_id, comment.id, @user.id, params[:reason]
+    )
 
-    render :text => "ok"
+    render :plain => "ok"
   end
 
   def index
-    @rss_link ||= { :title => "RSS 2.0 - Newest Comments",
-      :href => "/comments.rss#{@user ? "?token=#{@user.rss_token}" : ""}" }
+    @rss_link ||= {
+      :title => "RSS 2.0 - Newest Comments",
+      :href => "/comments.rss" + (@user ? "?token=#{@user.rss_token}" : ""),
+    }
 
     @heading = @title = "Newest Comments"
     @cur_url = "/comments"
@@ -228,24 +236,19 @@ class CommentsController < ApplicationController
       raise ActionController::RoutingError.new("page out of bounds")
     end
 
-    @comments = Comment.where(
-      :is_deleted => false, :is_moderated => false
-    ).order(
-      "created_at DESC"
-    ).offset(
-      (@page - 1) * COMMENTS_PER_PAGE
-    ).limit(
-      COMMENTS_PER_PAGE
-    ).includes(
-      :user, :story
-    )
+    @comments = Comment.for_user(@user)
+      .order("id DESC")
+      .includes(:user, :hat, :story => :user)
+      .joins(:story).where.not(stories: { is_expired: true })
+      .limit(COMMENTS_PER_PAGE)
+      .offset((@page - 1) * COMMENTS_PER_PAGE)
 
     if @user
-      @comments = @comments.where("story_id NOT IN (SELECT story_id FROM " <<
-        "hidden_stories WHERE user_id = ?)", @user.id)
+      @comments = @comments.where("NOT EXISTS (SELECT 1 FROM " <<
+        "hidden_stories WHERE user_id = ? AND " <<
+        "hidden_stories.story_id = comments.story_id)", @user.id)
 
-      @votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id,
-        @comments.map{|c| c.id })
+      @votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id, @comments.map(&:id))
 
       @comments.each do |c|
         if @votes[c.id]
@@ -266,9 +269,53 @@ class CommentsController < ApplicationController
     end
   end
 
+  def upvoted
+    @rss_link ||= {
+      :title => "RSS 2.0 - Newest Comments",
+      :href => upvoted_comments_path(format: :rss) + (@user ? "?token=#{@user.rss_token}" : ""),
+    }
+
+    @heading = @title = "Upvoted Comments"
+    @cur_url = upvoted_comments_path
+
+    @page = params[:page].to_i
+    if @page == 0
+      @page = 1
+    elsif @page < 0 || @page > (2 ** 32)
+      raise ActionController::RoutingError.new("page out of bounds")
+    end
+
+    @comments = Comment.for_user(@user)
+      .where.not(user_id: @user.id)
+      .order("id DESC")
+      .includes(:user, :hat, :story => :user)
+      .joins(:votes).where(votes: { user_id: @user.id, vote: 1 })
+      .joins(:story).where.not(stories: { is_expired: true })
+      .limit(COMMENTS_PER_PAGE)
+      .offset((@page - 1) * COMMENTS_PER_PAGE)
+
+    # TODO: respect hidden stories
+
+    @votes = Vote.comment_votes_by_user_for_comment_ids_hash(@user.id, @comments.map(&:id))
+    @comments.each do |c|
+      c.current_vote = @votes[c.id]
+    end
+
+    respond_to do |format|
+      format.html { render action: :index, layout: 'upvoted' }
+      format.rss {
+        if @user && params[:token].present?
+          @title = "Upvoted comments feed for #{@user.username}"
+        end
+
+        render :action => "index.rss", :layout => false
+      }
+    end
+  end
+
   def threads
     if params[:user]
-      @showing_user = User.where(:username => params[:user]).first!
+      @showing_user = User.find_by!(username: params[:user])
       @heading = @title = "Threads for #{@showing_user.username}"
       @cur_url = "/threads/#{@showing_user.username}"
     elsif !@user
@@ -280,23 +327,23 @@ class CommentsController < ApplicationController
       @cur_url = "/threads"
     end
 
-    thread_ids = @showing_user.recent_threads(20,
-      include_submitted_stories = !!(@user && @user.id == @showing_user.id))
-
-    comments = Comment.where(
-      :thread_id => thread_ids
-    ).includes(
-      :user, :story
-    ).arrange_for_user(
-      @showing_user
+    thread_ids = @showing_user.recent_threads(
+      20,
+      include_submitted_stories: !!(@user && @user.id == @showing_user.id),
+      for_user: @user
     )
+
+    comments = Comment.for_user(@user)
+      .where(:thread_id => thread_ids)
+      .includes(:user, :hat, :story => :user, :votes => :user)
+      .joins(:story).where.not(stories: { is_expired: true })
+      .arrange_for_user(@user)
 
     comments_by_thread_id = comments.group_by(&:thread_id)
     @threads = comments_by_thread_id.values_at(*thread_ids).compact
 
     if @user
-      @votes = Vote.comment_votes_by_user_for_story_hash(@user.id,
-        comments.map(&:story_id).uniq)
+      @votes = Vote.comment_votes_by_user_for_story_hash(@user.id, comments.map(&:story_id).uniq)
 
       comments.each do |c|
         if @votes[c.id]
@@ -304,18 +351,6 @@ class CommentsController < ApplicationController
         end
       end
     end
-
-    # trim each thread to this user's first response
-    # XXX: busted
-    #@threads.each do |th|
-    #  th.each do |c|
-    #    if c.user_id == @user.id
-    #      break
-    #    else
-    #      th.shift
-    #    end
-    #  end
-    #end
   end
 
 private
@@ -324,9 +359,14 @@ private
     comment.previewing = true
     comment.is_deleted = false # show normal preview for deleted comments
 
-    render :partial => "comments/commentbox", :layout => false,
-      :content_type => "text/html", :locals => {
-      :comment => comment, :show_comment => comment }
+    render :partial => "comments/commentbox",
+           :layout => false,
+           :content_type => "text/html",
+           :locals => {
+             :comment => comment,
+             :show_comment => comment,
+             :show_tree_lines => params[:show_tree_lines],
+           }
   end
 
   def find_comment

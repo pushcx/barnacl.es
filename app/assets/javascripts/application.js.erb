@@ -39,6 +39,26 @@ var _Lobsters = Class.extend({
 
     $.post("/stories/" + li.attr("data-shortid") + "/" + act);
   },
+  saveStory: function(saverEl) {
+    if (!Lobsters.curUser)
+      return Lobsters.bounceToLogin();
+
+    var li = $(saverEl).closest(".story, .comment");
+    var act;
+
+    if (li.hasClass("saved")) {
+      act = "unsave";
+      li.removeClass("saved");
+      saverEl.innerHTML = "save";
+    }
+    else {
+      act = "save";
+      li.addClass("saved");
+      saverEl.innerHTML = "unsave";
+    }
+
+    $.post("/stories/" + li.attr("data-shortid") + "/" + act);
+  },
 
   upvoteComment: function(voterEl) {
     Lobsters.vote("comment", voterEl, 1);
@@ -95,19 +115,25 @@ var _Lobsters = Class.extend({
       d.append(a);
     });
 
-    $(voterEl).after(d);
-
-    d.position({
-      my: "left top",
-      at: "left bottom",
-      offset: "-2 -2",
-      of: $(voterEl),
-      collision: "none",
-    });
-
-    /* XXX: why is this needed? */
-    if (thingType == "story")
+    if (thingType == "story") {
+      $(voterEl).closest("li").after(d);
+      d.position({
+        my: "left top",
+        at: "left bottom",
+        offset: "-2 -2",
+        of: $(voterEl),
+        collision: "none",
+      });
       d.css("left", $(voterEl).position().left);
+    } else {
+      // place downvote menu outside of the comment to avoid inheriting opacity
+      var voterPos = $(voterEl).position();
+      d.appendTo($(voterEl).closest(".comments_subtree"));
+      d.css({
+        left: voterPos.left,
+        top: voterPos.top + $(voterEl).outerHeight()
+      });
+    }
   },
 
   vote: function(thingType, voterEl, point, reason) {
@@ -116,7 +142,12 @@ var _Lobsters = Class.extend({
 
     var li = $(voterEl).closest(".story, .comment");
     var scoreDiv = li.find("div.score").get(0);
+    var showScore = true;
     var score = parseInt(scoreDiv.innerHTML);
+    if (isNaN(score)) {
+      showScore = false;
+      score = 0;
+    }
     var action = "";
 
     if (li.hasClass("upvoted") && point > 0) {
@@ -146,11 +177,15 @@ var _Lobsters = Class.extend({
         score--;
 
       li.removeClass("upvoted").addClass("downvoted");
+      showScore = false;
       score--;
       action = "downvote";
     }
 
-    scoreDiv.innerHTML = score;
+    if (showScore)
+      scoreDiv.innerHTML = score;
+    else
+      scoreDiv.innerHTML = '~';
 
     if (action == "upvote" || action == "unvote") {
       li.find(".reason").html("");
@@ -170,16 +205,28 @@ var _Lobsters = Class.extend({
   },
 
   postComment: function(form) {
-    $.post($(form).attr("action"), $(form).serializeArray(), function(data) {
-      if ($(form).find('#parent_comment_short_id').length) {
-        $(form).closest('.comment').replaceWith($.parseHTML(data));
+    var params = $(form).serializeArray();
+    params.push({"name": "show_tree_lines", "value": "true"});
+
+    $.post($(form).attr("action"), params, function(data) {
+      var parsedHTML = $.parseHTML(data);
+
+      var isEdit = $(form).hasClass("edit_comment");
+      var hasChildren = $(form).closest(".comments_subtree")
+        .find(".comments_subtree").length;
+      if (isEdit && hasChildren) {
+        $(parsedHTML).find(".comment_parent_tree_line:first")
+          .removeClass("no_children");
+      }
+
+      if ($(form).find("#parent_comment_short_id").length) {
+        // reply to comment
+        $(form).closest(".comments_subtree")
+          .find(".comment_parent_tree_line:first").removeClass("no_children");
+        $(form).closest(".comment").replaceWith(parsedHTML);
       } else {
-        if ($(form).attr("id").match(/^edit_comment_.+$/)) {
-          $(form).parent(".comment").replaceWith($.parseHTML(data));
-        } else {
-          $(form).closest('.comment').after($.parseHTML(data));
-          $(form).find('textarea').val('');
-        }
+        // reply to story
+        $(form).parent(".comment").replaceWith(parsedHTML);
       }
     });
   },
@@ -187,6 +234,7 @@ var _Lobsters = Class.extend({
   previewComment: function(form) {
     var params = $(form).serializeArray();
     params.push({"name": "preview", "value": "true"});
+    params.push({"name": "show_tree_lines", "value": "true"});
     $.post($(form).attr("action"), params, function(data) {
       var da = $.parseHTML(data);
       var ta = $(da).find("textarea");
@@ -200,6 +248,34 @@ var _Lobsters = Class.extend({
     function() {
       Lobsters.runSelect2();
     });
+  },
+
+  checkStoryDuplicate: function(form) {
+    var params = $(form).serializeArray();
+    $.post("/stories/check_url_dupe", params, function(formErrorsHtml) {
+      $(form).find(".form_errors_header").html(formErrorsHtml);
+    });
+  },
+
+  checkStoryTitle: function() {
+    var title = $("#story_title").val();
+    if (title === undefined) {
+      return;
+    }
+    var m;
+    if (m = title.match(/^(show|ask) lobste\.?rs:? (.+)$/i)) {
+      var ta = $("#story_tags_a").data("select2");
+      if (ta.getVal().indexOf(m[1].toLowerCase()) < 0)
+        ta.addSelectedChoice({ id: m[1].toLowerCase() });
+      $("#story_title").val(m[2]);
+    }
+
+    // common separators or (parens) that don't enclose a 4-digit year
+    if (title.match(/: | - | – | — | \| | · | • | by /) ||
+        title.match(/\([^\)]*\)/g).some(function (p) { return !p.match(/\(\d{4}\)/) })
+    ) {
+      $('.title-reminder').slideDown();
+    }
   },
 
   runSelect2: function() {
@@ -241,7 +317,7 @@ var _Lobsters = Class.extend({
   },
 
   moderateStory: function(link) {
-    var reason = prompt("Moderation reason:");
+    var reason = $("#story_moderation_reason").val();
     if (reason == null || reason == "")
       return false;
 
@@ -312,11 +388,12 @@ var _Lobsters = Class.extend({
 var Lobsters = new _Lobsters();
 
 $(document).ready(function() {
-  $(".comment a.downvoter").click(function() {
+  var $olcomments = $("ol.comments");
+  $olcomments.on("click", ".comment a.downvoter", function() {
     Lobsters.downvoteComment(this);
     return false;
   });
-  $(".comment a.upvoter").click(function() {
+  $olcomments.on("click", ".comment a.upvoter", function() {
     Lobsters.upvoteComment(this);
     return false;
   });
@@ -333,19 +410,18 @@ $(document).ready(function() {
     Lobsters.hideStory(this);
     return false;
   });
+  $("li.story a.saver").click(function() {
+    Lobsters.saveStory(this);
+    return false;
+  });
 
-  $("li.story a.mod_story_link").click(function() {
+  $("a.mod_story_link").click(function() {
     return Lobsters.moderateStory(this);
   }),
 
-  $(".toggle_dragons").click(function(a) {
-    var c = $(".dragon_threads").first();
-    if (c) {
-      if (c.hasClass("hidden"))
-        c.removeClass("hidden");
-      else
-        c.addClass("hidden");
-    }
+  $("select[name=message\\[hat_id\\]]").change(function() {
+    $(this).siblings("input[name=message\\[mod_note\\]]")
+      .prop("checked", !!$(this).find('option:selected').data('modnote'));
   }),
 
   $(document).on("click", "a.comment_replier", function() {
@@ -393,9 +469,18 @@ $(document).ready(function() {
     var comment = $(this).closest(".comment");
     var comment_id = comment.attr("data-shortid");
     if (comment_id != null && comment_id !== '') {
-      $.get("/comments/" + comment_id, function(data) {
-        comment.replaceWith($.parseHTML(data));
-      });
+      $.get("/comments/" + comment_id + "?show_tree_lines=true",
+        function(data) {
+          var parsedHTML = $.parseHTML(data);
+          var isEdit = comment.children("form").hasClass("edit_comment");
+          var hasChildren = comment.closest(".comments_subtree")
+            .find(".comments_subtree").length;
+          if (isEdit && hasChildren) {
+            $(parsedHTML).find(".comment_parent_tree_line:first")
+              .removeClass("no_children");
+          }
+          comment.replaceWith(parsedHTML);
+        });
     } else {
       comment.remove();
     }
@@ -409,7 +494,8 @@ $(document).ready(function() {
     });
   });
 
-  $(document).on("click", "a.comment_deletor", function() {
+  $(document).on("click", "a.comment_deletor", function(event) {
+    event.preventDefault();
     if (confirm("Are you sure you want to delete this comment?")) {
       var li = $(this).closest(".comment");
       $.post("/comments/" + $(li).attr("data-shortid") + "/delete",
@@ -418,7 +504,8 @@ $(document).ready(function() {
       });
     }
   });
-  $(document).on("click", "a.comment_undeletor", function() {
+  $(document).on("click", "a.comment_undeletor", function(event) {
+    event.preventDefault();
     if (confirm("Are you sure you want to undelete this comment?")) {
       var li = $(this).closest(".comment");
       $.post("/comments/" + $(li).attr("data-shortid") + "/undelete",
@@ -428,21 +515,12 @@ $(document).ready(function() {
     }
   });
 
-  $(document).on("click", "a.comment_dragon", function() {
-    if (confirm("Are you sure you want to mark this thread?")) {
+  $(document).on("click", "a.comment_disownor", function() {
+    if (confirm("Are you sure you want to disown this comment?")) {
       var li = $(this).closest(".comment");
-      $.post("/comments/" + $(li).attr("data-shortid") + "/dragon",
+      $.post("/comments/" + $(li).attr("data-shortid") + "/disown",
       function(d) {
-        window.location.reload();
-      });
-    }
-  });
-  $(document).on("click", "a.comment_undragon", function() {
-    if (confirm("Are you sure you want to unmark this thread?")) {
-      var li = $(this).closest(".comment");
-      $.post("/comments/" + $(li).attr("data-shortid") + "/undragon",
-      function(d) {
-        window.location.reload();
+        $(li).replaceWith(d);
       });
     }
   });
@@ -467,7 +545,8 @@ $(document).ready(function() {
       children(".markdown_help").toggle();
   });
 
-  $(document).on("click", "button.comment-post", function() {
+  $(document).on("click", ".comment-post", function(event) {
+    event.preventDefault();
     Lobsters.postComment($(this).parents("form").first());
   });
 
@@ -496,27 +575,29 @@ $(document).ready(function() {
           ta.addSelectedChoice({ id: tag });
       }
     }
-  });
 
-  $(document).on("blur", "#story_title", function() {
-    var m;
-    if (m = $("#story_title").val().match(/^(show|ask) lobste\.?rs:? (.+)$/i)) {
-      var ta = $("#story_tags_a").data("select2");
-      if (ta.getVal().indexOf(m[1].toLowerCase()) < 0)
-        ta.addSelectedChoice({ id: m[1].toLowerCase() });
-      $("#story_title").val(m[2]);
+    if ($("#story_url").val().length > 0) {
+      Lobsters.checkStoryDuplicate($(this).parents("form").first());
     }
   });
+
+  $(document).on("blur change", "#story_title", Lobsters.checkStoryTitle);
+  $(document).ready(Lobsters.checkStoryTitle);
 
   $(document).on("click", "#story_guidelines_toggler", function() {
     $("#story_guidelines").toggle();
     return false;
   });
 
+  $(document).on("blur", "#user_homepage", function() {
+    if (this.value.trim() !== '' && !this.value.match('^https?:\/\/'))
+      this.value = 'http://' + this.value;
+  });
 
   $('textarea#comment').keydown(function (e) {
     if ((e.metaKey || e.ctrlKey) && e.keyCode == 13) {
-      $("button.comment-post").click();
+      $(".comment-post").click();
     }
   });
 });
+

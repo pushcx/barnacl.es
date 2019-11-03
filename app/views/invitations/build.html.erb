@@ -19,26 +19,26 @@
   Your e-mail address will not be shown to any other users (except moderators).
   </p>
 
-  <%= form_for @invitation_request,
-  :url => create_invitation_by_request_path do |f| %>
+  <%= form_with model: @invitation_request, url: create_invitation_by_request_path, local: true do |f| %>
     <p>
-    <%= f.label :name, "Name:" %>
+    <%= f.label :name, "Name (not username):" %>
     <%= f.text_field :name, :size => 30 %>
     <br />
 
     <%= f.label :email, "E-mail Address:" %>
-    <%= f.text_field :email, :size => 30 %>
+    <%= f.email_field :email, :size => 30 %>
     <br />
 
     <%= f.label :memo, "URL:" %>
     <%= f.text_field :memo, :size => 30 %>
     <br />
     <label></label>
-    <span class="na">URL to verify you (Business or personal website, Twitter, Github, etc.)</span>
+    <span class="na">URL to verify you (Personal website, GitHub account,
+      etc.)</span>
     </p>
 
     <p>
-    <%= submit_tag "Request Invitation" %>
+    <%= f.submit "Request Invitation" %>
     </p>
   <% end %>
 </div>

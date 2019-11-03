@@ -1,145 +1,309 @@
-require "spec_helper"
+require "rails_helper"
 
 describe Story do
   it "should get a short id" do
-    s = Story.make!(:title => "hello", :url => "http://example.com/")
+    s = create(:story, :title => "hello", :url => "http://example.com/")
 
-    s.short_id.should match(/^\A[a-zA-Z0-9]{1,10}\z/)
+    expect(s.short_id).to match(/^\A[a-zA-Z0-9]{1,10}\z/)
   end
 
   it "requires a url or a description" do
-    expect { Story.make!(:title => "hello", :url => "",
-      :description => "") }.to raise_error
+    expect { create(:story, :title => "hello", :url => "", :description => "") }.to raise_error
 
-    expect { Story.make!(:title => "hello", :description => "hi", :url => nil)
-      }.to_not raise_error
+    expect {
+      create(:story, :title => "hello", :description => "hi", :url => nil)
+    }.to_not raise_error
 
-    expect { Story.make!(:title => "hello", :url => "http://ex.com/",
-      :description => nil) }.to_not raise_error
+    expect {
+      create(:story, :title => "hello", :url => "http://ex.com/", :description => nil)
+    }.to_not raise_error
   end
 
   it "does not allow too-short titles" do
-    expect { Story.make!(:title => "") }.to raise_error
-    expect { Story.make!(:title => "hi") }.to raise_error
-    expect { Story.make!(:title => "hello") }.to_not raise_error
+    expect { create(:story, :title => "") }.to raise_error
+    expect { create(:story, :title => "hi") }.to raise_error
+    expect { create(:story, :title => "hello") }.to_not raise_error
   end
 
   it "does not allow too-long titles" do
-    expect { Story.make!(:title => ("hello" * 100)) }.to raise_error
+    expect { create(:story, :title => ("hello" * 100)) }.to raise_error
   end
 
   it "must have at least one tag" do
-    expect { Story.make!(:tags_a => nil) }.to raise_error
-    expect { Story.make!(:tags_a => [ "", " " ]) }.to raise_error
+    expect { create(:story, :tags_a => nil) }.to raise_error
+    expect { create(:story, :tags_a => ["", " "]) }.to raise_error
 
-    expect { Story.make!(:tags_a => [ "", "tag1" ]) }.to_not raise_error
+    expect { create(:story, :tags_a => ["", "tag1"]) }.to_not raise_error
+  end
+
+  it "removes redundant http port 80 and https port 443" do
+    expect(Story.new(url: 'http://example.com:80').url).to eq('http://example.com')
+    expect(Story.new(url: 'http://example.com:80/').url).to eq('http://example.com/')
+    expect(Story.new(url: 'https://example.com:443').url).to eq('https://example.com')
+    expect(Story.new(url: 'https://example.com:443/').url).to eq('https://example.com/')
+  end
+
+  it "removes utm_ tracking parameters" do
+    expect(Story.new(url: 'http://a.com?a=b').url).to eq('http://a.com?a=b')
+    expect(Story.new(url: 'http://a.com?utm_term=track&c=d').url).to eq('http://a.com?c=d')
+    expect(Story.new(url: 'http://a.com?a=b&utm_term=track&c=d').url).to eq('http://a.com?a=b&c=d')
   end
 
   it "checks for invalid urls" do
-    expect { Story.make!(:title => "test", :url => "http://gooses.com/")
-      }.to_not raise_error
+    expect(Story.new(url: 'http://example.com').tap(&:valid?).errors[:url]).to be_empty
 
-    expect { Story.make!(:title => "test", url => "ftp://gooses/")
-      }.to raise_error
+    expect(Story.new(url: 'http://example/').tap(&:valid?).errors[:url]).to_not be_empty
+    expect(Story.new(url: 'ftp://example.com/').tap(&:valid?).errors[:url]).to_not be_empty
+    expect(Story.new(url: 'http://example.com:123/').tap(&:valid?).errors[:url]).to be_empty
   end
 
   it "checks for a previously posted story with same url" do
-    Story.count.should == 0
+    expect(Story.count).to eq(0)
 
-    Story.make!(:title => "flim flam", :url => "http://example.com/")
-    Story.count.should == 1
+    create(:story, :title => "flim flam", :url => "http://example.com/")
+    expect(Story.count).to eq(1)
 
-    expect { Story.make!(:title => "flim flam 2",
-      :url => "http://example.com/") }.to raise_error
+    expect {
+      create(:story, :title => "flim flam 2", :url => "http://example.com/")
+    }.to raise_error
 
-    Story.count.should == 1
+    expect(Story.count).to eq(1)
 
-    expect { Story.make!(:title => "flim flam 2",
-      :url => "http://www.example.com/") }.to raise_error
+    expect {
+      create(:story, :title => "flim flam 2", :url => "http://www.example.com/")
+    }.to raise_error
 
-    Story.count.should == 1
+    expect(Story.count).to eq(1)
   end
 
   it "parses domain properly" do
-    s = Story.make!(:url => "http://example.com")
-    s.domain.should == "example.com"
+    story = Story.new
+    {
+      "http://example.com" => "example.com",
+      "https://example.com" => "example.com",
+      "http://example.com:8000" => "example.com",
+      "http://example.com:8000/" => "example.com",
+      "http://www3.example.com/goose" => "example.com",
+      "http://flub.example.com" => "flub.example.com",
+    }.each_pair do |url, domain|
+      story.url = url
+      expect(story.domain).to eq(domain)
+    end
+  end
 
-    s = Story.make!(:url => "http://www3.example.com/goose")
-    s.domain.should == "example.com"
-
-    s = Story.make!(:url => "http://flub.example.com")
-    s.domain.should == "flub.example.com"
+  it "has domain straight out of the db, when Rails doesn't use setters" do
+    s = create(:story, url: 'https://example.com/foo.html')
+    s = Story.find(s.id)
+    expect(s.domain).to eq('example.com')
+    s.url = 'http://example.org'
+    expect(s.domain).to eq('example.org')
+    s.url = 'invalid'
+    expect(s.domain).to be_nil
   end
 
   it "converts a title to a url properly" do
-    s = Story.make!(:title => "Hello there, this is a title")
-    s.title_as_url.should == "hello_there_this_is_title"
+    s = create(:story, :title => "Hello there, this is a title")
+    expect(s.title_as_url).to eq("hello_there_this_is_title")
 
-    s = Story.make!(:title => "Hello _ underscore")
-    s.title_as_url.should == "hello_underscore"
+    s = create(:story, :title => "Hello _ underscore")
+    expect(s.title_as_url).to eq("hello_underscore")
 
-    s = Story.make!(:title => "Hello, underscore")
-    s.title_as_url.should == "hello_underscore"
+    s = create(:story, :title => "Hello, underscore")
+    expect(s.title_as_url).to eq("hello_underscore")
 
-    s = Story.make(:title => "The One-second War (What Time Will You Die?) ")
-    s.title_as_url.should == "one_second_war_what_time_will_you_die"
+    s = build(:story, :title => "The One-second War (What Time Will You Die?) ")
+    expect(s.title_as_url).to eq("one_second_war_what_time_will_you_die")
   end
 
   it "is not editable by another non-admin user" do
-    u = User.make!
+    s = create(:story)
+    expect(s.is_editable_by_user?(s.user)).to be true
 
-    s = Story.make!(:user_id => u.id)
-    s.is_editable_by_user?(u).should == true
-
-    u = User.make!
-    s.is_editable_by_user?(u).should == false
+    u = create(:user)
+    expect(s.is_editable_by_user?(u)).to be false
   end
 
-  it "can fetch its title properly" do
-    s = Story.make
-    s.fetched_content = File.read(Rails.root +
-      "spec/fixtures/story_pages/1.html")
-    s.fetched_attributes[:title].should == "B2G demo & quick hack // by Paul Rouget"
+  context 'fetching titles' do
+    let(:story_directory) { Rails.root.join 'spec/fixtures/story_pages/' }
 
-    s = Story.make
-    s.fetched_content = File.read(Rails.root +
-      "spec/fixtures/story_pages/2.html")
-    s.fetched_attributes[:title].should == "Google"
+    it "can fetch its title properly" do
+      s = build(:story)
+      s.fetched_content = File.read(story_directory + "title_ampersand.html")
+      expect(s.fetched_attributes[:title]).to eq("B2G demo & quick hack // by Paul Rouget")
+
+      s = build(:story)
+      s.fetched_content = File.read(story_directory + "title_google.html")
+      expect(s.fetched_attributes[:title]).to eq("Google")
+    end
+
+    it "does not fetch title with a port specified" do
+      expect(Sponge).to_not receive(:new)
+      story = Story.new url: 'https://example.com:123/'
+      expect(story.fetched_attributes[:title]).to eq('')
+    end
+
+    it "does not follow rel=canonical when this is to the main page" do
+      url = "https://www.mcsweeneys.net/articles/who-said-it-donald-trump-or-regina-george"
+      s = build(:story, url: url)
+      s.fetched_content = File.read(story_directory + "canonical_root.html")
+      expect(s.fetched_attributes[:url]).to eq(url)
+    end
+
+    it "does not assign canonical url when the response is non-200" do
+      url = "https://www.mcsweeneys.net/a/who-said-it-donald-trump-or-regina-george"
+
+      expect_any_instance_of(Sponge)
+        .to receive(:fetch)
+        .and_return(Net::HTTPResponse.new(1.0, 404, "OK"))
+
+      s = build(:story, url: url)
+      s.fetched_content = File.read(story_directory + "canonical_error.html")
+      expect(s.fetched_attributes[:url]).to eq(url)
+    end
+
+    it "assigns canonical when url when it resolves 200" do
+      url = "https://www.mcsweeneys.net/a/who-said-it-donald-trump-or-regina-george"
+      canonical = "https://www.mcsweeneys.net/articles/who-said-it-donald-trump-or-regina-george"
+
+      expect_any_instance_of(Sponge)
+        .to receive(:fetch)
+        .and_return(Net::HTTPResponse.new(1.0, 200, "OK"))
+
+      s = build(:story, url: url)
+      s.fetched_content = File.read(story_directory + "canonical_error.html")
+      expect(s.fetched_attributes[:url]).to eq(canonical)
+    end
+
+    context "with unicode" do
+      before do
+        content = "<!DOCTYPE html><html><title>你好世界！ Here’s a fancy apostrophe</title></html>"
+                  .force_encoding('ASCII-8BIT') # This is the encoding returned by Sponge#fetch
+        allow_any_instance_of(Sponge).to receive(:fetch).and_return double(body: content)
+      end
+
+      it "can fetch unicode titles properly" do
+        s = build(:story)
+        expect(s.fetched_attributes[:title]).to eq("你好世界！ Here’s a fancy apostrophe")
+      end
+    end
   end
 
   it "sets the url properly" do
-    s = Story.make(:title => "blah")
+    s = build(:story, :title => "blah")
     s.url = "https://factorable.net/"
     s.valid?
-    s.url.should == "https://factorable.net/"
+    expect(s.url).to eq("https://factorable.net/")
   end
 
   it "calculates tag changes properly" do
-    s = Story.make!(:title => "blah", :tags_a => [ "tag1", "tag2" ])
+    s = create(:story, :title => "blah", :tags_a => ["tag1", "tag2"])
 
-    s.tags_a = [ "tag2" ]
-    s.tagging_changes.should == { "tags" => [ "tag1 tag2", "tag2" ] }
+    s.tags_a = ["tag2"]
+    expect(s.tagging_changes).to eq("tags" => ["tag1 tag2", "tag2"])
+  end
+
+  it "assigning new tags_a should create new_record taggings" do
+    s = create(:story, tags_a: ['tag1'])
+    s.tags_a = ['tag1', 'tag2']
+    expect(s.taggings.map(&:new_record?)).to eq([false, true])
+  end
+
+  it "logs tag additions from user suggestions properly" do
+    s = create(:story, :title => "blah", :tags_a => ["tag1"], :description => "desc")
+
+    u1 = create(:user)
+    s.save_suggested_tags_a_for_user!(['tag1', 'tag2'], u1)
+    s.reload
+
+    u2 = create(:user)
+    s.save_suggested_tags_a_for_user!(['tag1', 'tag2'], u2)
+
+    mod_log = Moderation.last
+    expect(mod_log.moderator_user_id).to eq(nil)
+    expect(mod_log.story_id).to eq(s.id)
+    expect(mod_log.reason).to match(/Automatically changed/)
+    expect(mod_log.action).to match(/tags from "tag1" to "tag1 tag2"/)
   end
 
   it "logs moderations properly" do
-    mod = User.make!(:username => "mod", :is_moderator => true)
+    mod = create(:user, :moderator)
 
-    s = Story.make!(:title => "blah", :tags_a => [ "tag1", "tag2" ],
+    s = create(:story, :title => "blah", :tags_a => ["tag1", "tag2"],
       :description => "desc")
 
     s.title = "changed title"
     s.description = nil
-    s.tags_a = [ "tag1" ]
+    s.tags_a = ["tag1"]
 
     s.editor = mod
     s.moderation_reason = "because i hate you"
     s.save!
 
     mod_log = Moderation.last
-    mod_log.moderator_user_id.should == mod.id
-    mod_log.story_id.should == s.id
-    mod_log.reason.should == "because i hate you"
-    mod_log.action.should match(/title from "blah" to "changed title"/)
-    mod_log.action.should match(/tags from "tag1 tag2" to "tag1"/)
+    expect(mod_log.moderator_user_id).to eq(mod.id)
+    expect(mod_log.story_id).to eq(s.id)
+    expect(mod_log.reason).to eq("because i hate you")
+    expect(mod_log.action).to match(/title from "blah" to "changed title"/)
+    expect(mod_log.action).to match(/tags from "tag1 tag2" to "tag1"/)
+  end
+
+  describe "#similar_stories" do
+    it "finds stories with similar URLs" do
+      s1 = create(:story, url: 'https://example.com', created_at: (Story::RECENT_DAYS + 1).days.ago)
+      s2 = create(:story, url: 'https://example.com/')
+      expect(s1.similar_stories).to eq([s2])
+      expect(s2.similar_stories).to eq([s1])
+    end
+
+    it "does not include merges" do
+      s1 = create(:story, url: 'https://example.com', created_at: (Story::RECENT_DAYS + 1).days.ago)
+      s2 = create(:story, url: 'https://example.com/', merged_story_id: s1.id)
+      expect(s1.similar_stories).to eq([])
+      expect(s2.similar_stories).to eq([])
+    end
+  end
+
+  describe "#calculated_hotness" do
+    let(:story) do
+      create(:story, url: 'https://example.com', user_is_author: true, created_at: Time.zone.at(0))
+    end
+
+    before do
+      create(:comment, story: story, downvotes: 5, upvotes: 10)
+      create(:comment, story: story, downvotes: 10, upvotes: 5)
+    end
+
+    context "with positive base" do
+      it "return correct score" do
+        expect(story.calculated_hotness).to eq(-0.25)
+      end
+    end
+
+    context "with negative base" do
+      before do
+        tag = create(:tag, hotness_mod: -10)
+        story.update(tags: [tag])
+      end
+
+      it "return correct score" do
+        expect(story.calculated_hotness).to eq 9.75
+      end
+    end
+  end
+
+  describe "#update_comments_count!" do
+    context "with a merged_into_story" do
+      let(:merged_into_story) { create(:story) }
+      let(:story) { create(:story, merged_into_story: merged_into_story) }
+
+      it "should also update the merged_into_story's comment count" do
+        expect(story.comments_count).to eq 0
+        expect(merged_into_story.comments_count).to eq 0
+        create(:comment, story: story)
+        story.update_comments_count!
+        expect(story.comments_count).to eq 1
+        expect(merged_into_story.comments_count).to eq 1
+      end
+    end
   end
 end

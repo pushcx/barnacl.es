@@ -1,7 +1,7 @@
-class Vote < ActiveRecord::Base
-  belongs_to :user
-  belongs_to :story
-  belongs_to :comment
+class Vote < ApplicationRecord
+  belongs_to :user, optional: false
+  belongs_to :story, optional: false
+  belongs_to :comment, optional: true
 
   COMMENT_REASONS = {
     "O" => "Off-topic",
@@ -10,24 +10,26 @@ class Vote < ActiveRecord::Base
     "U" => "Unkind",
     "T" => "Troll",
     "S" => "Spam",
+    "U" => "Unkind",
     "" => "Cancel",
-  }
+  }.freeze
 
   STORY_REASONS = {
     "O" => "Off-topic",
     "A" => "Already Posted",
     "S" => "Spam",
+    "B" => "Broken Link",
     "" => "Cancel",
-  }
+  }.freeze
   OLD_STORY_REASONS = {
     "Q" => "Low Quality",
-  }
+  }.freeze
 
   def self.votes_by_user_for_stories_hash(user, stories)
     votes = {}
 
     Vote.where(:user_id => user, :story_id => stories,
-    :comment_id => nil).each do |v|
+    :comment_id => nil).find_each do |v|
       votes[v.story_id] = { :vote => v.vote, :reason => v.reason }
     end
 
@@ -41,7 +43,7 @@ class Vote < ActiveRecord::Base
       :user_id => user_id, :story_id => story_id
     ).where(
       "comment_id IS NOT NULL"
-    ).each do |v|
+    ).find_each do |v|
       votes[v.comment_id] = { :vote => v.vote, :reason => v.reason }
     end
 
@@ -79,59 +81,59 @@ class Vote < ActiveRecord::Base
     end
   end
 
-  def self.vote_thusly_on_story_or_comment_for_user_because(vote, story_id,
-  comment_id, user_id, reason, update_counters = true)
+  def self.vote_thusly_on_story_or_comment_for_user_because(
+    vote, story_id, comment_id, user_id, reason, update_counters = true
+  )
     v = Vote.where(:user_id => user_id, :story_id => story_id,
       :comment_id => comment_id).first_or_initialize
 
-    if !v.new_record? && v.vote == vote
-      return
+    # vote is already recorded, return
+    return if !v.new_record? && v.vote == vote
+
+    #  v.vote  vote  up  down
+    #  -1       1     1   -1
+    #   0       1     1    0
+    #  -1       0     0   -1
+    #   1       0    -1    0
+    #   0      -1     0    1
+    #   1      -1    -1    1
+    if vote == 1
+      upvote = 1
+    elsif v.vote == 1
+      upvote = -1
+    else
+      upvote = 0
+    end
+    if vote == -1
+      downvote = 1
+    elsif v.vote == -1
+      downvote = -1
+    else
+      downvote = 0
     end
 
-    upvote = 0
-    downvote = 0
+    if vote == 0
+      v.destroy!
+    else
+      v.vote = vote
+      v.reason = reason
+      v.save!
+    end
 
-    Vote.transaction do
-      # unvote
-      if vote == 0
-        # neutralize previous vote
-        upvote = (v.vote == 1 ? -1 : 0)
-        downvote = (v.vote == -1 ? -1 : 0)
-        v.destroy!
-
-      # new vote or change vote
-      else
-        if !v.new_record?
-          upvote = (v.vote == 1 ? -1 : 0)
-          downvote = (v.vote == -1 ? -1 : 0)
-        end
-
-        upvote += (vote == 1 ? 1 : 0)
-        downvote += (vote == -1 ? 1 : 0)
-
-        v.vote = vote
-        v.reason = reason
-        v.save!
+    if update_counters
+      t = v.target
+      if v.user_id != t.user_id
+        User.update_counters t.user_id, karma: upvote - downvote
       end
+      t.give_upvote_or_downvote_and_recalculate!(upvote, downvote)
+    end
+  end
 
-      if update_counters && (downvote != 0 || upvote != 0)
-        if v.comment_id
-          c = Comment.find(v.comment_id)
-          if c.user_id != user_id
-            User.update_counters c.user_id, :karma => upvote - downvote
-          end
-
-          c.give_upvote_or_downvote_and_recalculate_confidence!(upvote,
-            downvote)
-        else
-          s = Story.find(v.story_id)
-          if s.user_id != user_id
-            User.update_counters s.user_id, :karma => upvote - downvote
-          end
-
-          s.give_upvote_or_downvote_and_recalculate_hotness!(upvote, downvote)
-        end
-      end
+  def target
+    if self.comment_id
+      Comment.find(self.comment_id)
+    else
+      Story.find(self.story_id)
     end
   end
 end

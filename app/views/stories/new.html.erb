@@ -4,9 +4,8 @@
   </div>
 
   <div id="story_holder">
-    <%= form_for @story do |f| %>
-      <%= render :partial => "stories/form", :locals => { :story => @story,
-        :f => f } %>
+    <%= form_with model: @story, local: true do |f| %>
+      <%= render :partial => "stories/form", :locals => { :story => @story, :f => f } %>
 
       <p></p>
 
@@ -16,7 +15,7 @@
             Markdown formatting available
           </div>
 
-          <%= submit_tag "Submit" %>
+          <%= f.submit "Submit" %>
 
           &nbsp;
           <button type="button" class="story-preview">Preview</button>
@@ -24,7 +23,7 @@
           <div style="clear: both;"></div>
 
           <%= render :partial => "global/markdownhelp",
-            :locals => { :allow_images => true } %>
+            :locals => { allow_images: @story.can_have_images? } %>
         </div>
       </div>
     <% end %>

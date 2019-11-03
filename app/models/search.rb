@@ -4,14 +4,15 @@ class Search
   include ActiveModel::AttributeMethods
   extend ActiveModel::Naming
 
-  attr_accessor :q, :what, :order
+  attr_accessor :q, :order
   attr_accessor :results, :page, :total_results, :per_page
+  attr_writer :what
 
-  validates_length_of :q, :minimum => 2
+  validates :q, length: { :minimum => 2 }
 
   def initialize
     @q = ""
-    @what = "all"
+    @what = "stories"
     @order = "relevance"
 
     @page = 1
@@ -22,7 +23,7 @@ class Search
   end
 
   def max_matches
-    ThinkingSphinx::Configuration.instance.settings["max_matches"] || 1000
+    100
   end
 
   def persisted?
@@ -30,8 +31,7 @@ class Search
   end
 
   def to_url_params
-    [ :q, :what, :order ].map{|p| "#{p}=#{CGI.escape(self.send(p).to_s)}"
-      }.join("&amp;")
+    [:q, :what, :order].map {|p| "#{p}=#{CGI.escape(self.send(p).to_s)}" }.join("&amp;")
   end
 
   def page_count
@@ -44,93 +44,178 @@ class Search
     ((total - 1) / self.per_page.to_i) + 1
   end
 
-  def search_for_user!(user)
-    opts = {
-      :ranker   => :bm25,
-      :page     => [ self.page, self.page_count ].min,
-      :per_page => self.per_page,
-      :include  => [ :story, :user ],
-    }
-
-    if order == "newest"
-      opts[:order] = "created_at DESC"
-    elsif order == "points"
-      opts[:order] = "score DESC"
+  def what
+    case @what
+    when "comments"
+      "comments"
+    else
+      "stories"
     end
+  end
+
+  def with_tags(base, tag_scopes)
+    base
+      .joins({ :taggings => :tag }, :user)
+      .where(:tags => { :tag => tag_scopes })
+      .having("COUNT(stories.id) = ?", tag_scopes.length)
+      .group("stories.id")
+  end
+
+  def with_stories_in_domain(base, domain)
+    begin
+      reg = Regexp.new("//([^/]*\.)?#{domain}/")
+      base.where("`stories`.`url` REGEXP '" +
+        ActiveRecord::Base.connection.quote_string(reg.source) + "'")
+    rescue RegexpError
+      return base
+    end
+  end
+
+  def with_stories_matching_tags(base, tag_scopes)
+    story_ids_matching_tags = with_tags(
+      Story.unmerged.where(:is_expired => false), tag_scopes
+    ).select(:id).map(&:id)
+    base.where(story_id: story_ids_matching_tags)
+  end
+
+  def search_for_user!(user)
+    self.results = []
+    self.total_results = 0
 
     # extract domain query since it must be done separately
     domain = nil
-    words = self.q.to_s.split(" ").reject{|w|
-      if m = w.match(/^domain:(.+)$/)
+    tag_scopes = []
+    words = self.q.to_s.split(" ").reject {|w|
+      if (m = w.match(/^domain:(.+)$/))
         domain = m[1]
+      elsif (m = w.match(/^tag:(.+)$/))
+        tag_scopes << m[1]
       end
     }.join(" ")
 
-    if domain.present?
-      self.what = "stories"
-      story_ids = Story.select(:id).where("\"url\" ~ '//([^/]*\.)?" +
-        ActiveRecord::Base.connection.quote_string(domain) + "/'").
-        collect(&:id)
+    qwords = ActiveRecord::Base.connection.quote_string(words)
 
-      if story_ids.any?
-        opts[:with] = { :story_id => story_ids }
+    base = nil
+
+    case self.what
+    when "stories"
+      base = Story.unmerged.where(:is_expired => false)
+      if domain.present?
+        base = with_stories_in_domain(base, domain)
+      end
+
+      title_match_sql = Arel.sql("MATCH(stories.title) AGAINST('#{qwords}' IN BOOLEAN MODE)")
+      description_match_sql =
+        Arel.sql("MATCH(stories.description) AGAINST('#{qwords}' IN BOOLEAN MODE)")
+      story_cache_match_sql =
+        Arel.sql("MATCH(stories.story_cache) AGAINST('#{qwords}' IN BOOLEAN MODE)")
+
+      if qwords.present?
+        base.where!(
+          "(#{title_match_sql} OR " +
+          "#{description_match_sql} OR " +
+          "#{story_cache_match_sql})"
+        )
+
+        if tag_scopes.present?
+          self.results = with_tags(base, tag_scopes)
+        else
+          base = base.includes({ :taggings => :tag }, :user)
+          self.results = base.select(
+            ["stories.*", title_match_sql, description_match_sql, story_cache_match_sql].join(', ')
+          )
+        end
       else
-        self.results = []
-        self.total_results = 0
-        self.page = 0
-        return false
+        if tag_scopes.present?
+          self.results = with_tags(base, tag_scopes)
+        else
+          self.results = base.includes({ :taggings => :tag }, :user)
+        end
+      end
+      self.total_results = self.results.dup.count("stories.id")
+
+      case self.order
+      when "relevance"
+        if qwords.present?
+          self.results.order!(Arel.sql("((#{title_match_sql}) * 2) DESC, " +
+                                       "((#{description_match_sql}) * 1.5) DESC, " +
+                                       "(#{story_cache_match_sql}) DESC"))
+        else
+          self.results.order!("stories.created_at DESC")
+        end
+      when "newest"
+        self.results.order!("stories.created_at DESC")
+      when "points"
+        self.results.order!("#{Story.score_sql} DESC")
+      end
+
+    when "comments"
+      base = Comment.active
+      if domain.present?
+        base = with_stories_in_domain(base.joins(:story), domain)
+      end
+      if tag_scopes.present?
+        base = with_stories_matching_tags(base, tag_scopes)
+      end
+      if qwords.present?
+        base = base.where(Arel.sql("MATCH(comment) AGAINST('#{qwords}' IN BOOLEAN MODE)"))
+      end
+      self.results = base.select(
+        "comments.*, " +
+        "MATCH(comment) AGAINST('#{qwords}' IN BOOLEAN MODE) AS rel_comment"
+      ).includes(:user, :story)
+      self.total_results = self.results.dup.count("comments.id")
+
+      case self.order
+      when "relevance"
+        self.results.order!("rel_comment DESC")
+      when "newest"
+        self.results.order!("created_at DESC")
+      when "points"
+        self.results.order!("#{Comment.score_sql} DESC")
       end
     end
 
-    opts[:classes] = case what
-      when "all"
-        [ Story, Comment ]
-      when "comments"
-        [ Comment ]
-      when "stories"
-        [ Story ]
-      else
-        []
-      end
-
-    query = Riddle.escape(words)
-
-    # go go gadget search
-    self.total_results = -1
-    self.results = ThinkingSphinx.search query, opts
-    self.total_results = self.results.total_entries
+    # with_tags uses group_by, so count returns a hash
+    self.total_results = self.total_results.count if self.total_results.is_a? Hash
 
     if self.page > self.page_count
       self.page = self.page_count
     end
+    if self.page < 1
+      self.page = 1
+    end
 
-    # bind votes for both types
+    self.results = self.results
+      .limit(self.per_page)
+      .offset((self.page - 1) * self.per_page)
 
-    if opts[:classes].include?(Comment) && user
-      votes = Vote.comment_votes_by_user_for_comment_ids_hash(user.id,
-        self.results.select{|r| r.class == Comment }.map{|c| c.id })
+    # if a user is logged in, fetch their votes for what's on the page
+    if user
+      case what
+      when "stories"
+        votes = Vote.story_votes_by_user_for_story_ids_hash(user.id, self.results.map(&:id))
 
-      self.results.each do |r|
-        if r.class == Comment && votes[r.id]
-          r.current_vote = votes[r.id]
+        self.results.each do |r|
+          if votes[r.id]
+            r.vote = votes[r.id]
+          end
+        end
+
+      when "comments"
+        votes = Vote.comment_votes_by_user_for_comment_ids_hash(user.id, self.results.map(&:id))
+
+        self.results.each do |r|
+          if votes[r.id]
+            r.current_vote = votes[r.id]
+          end
         end
       end
     end
 
-    if opts[:classes].include?(Story) && user
-      votes = Vote.story_votes_by_user_for_story_ids_hash(user.id,
-        self.results.select{|r| r.class == Story }.map{|s| s.id })
-
-      self.results.each do |r|
-        if r.class == Story && votes[r.id]
-          r.vote = votes[r.id]
-        end
-      end
-    end
-
-  rescue ThinkingSphinx::ConnectionError => e
+  rescue ActiveRecord::StatementInvalid
+    # this is most likely bad boolean chars
     self.results = []
     self.total_results = -1
-    raise e
   end
 end

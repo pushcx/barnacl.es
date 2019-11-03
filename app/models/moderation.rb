@@ -1,10 +1,24 @@
-class Moderation < ActiveRecord::Base
+class Moderation < ApplicationRecord
   belongs_to :moderator,
-    :class_name => "User",
-    :foreign_key => "moderator_user_id"
-  belongs_to :story
-  belongs_to :comment
-  belongs_to :user
+             :class_name => "User",
+             :foreign_key => "moderator_user_id",
+             :inverse_of => :moderations,
+             :optional => true
+  belongs_to :comment,
+             :optional => true
+  belongs_to :story,
+             :optional => true
+  belongs_to :tag,
+             :optional => true
+  belongs_to :user,
+             :optional => true
+
+  scope :for, ->(user) {
+    left_outer_joins(:story, :comment) .where("
+      moderations.user_id = ? OR
+      stories.user_id = ? OR
+      comments.user_id = ?", user, user, user)
+  }
 
   after_create :send_message_to_moderated
 
@@ -17,29 +31,32 @@ class Moderation < ActiveRecord::Base
 
     if self.story
       m.recipient_user_id = self.story.user_id
-      m.subject = I18n.t('models.moderation.storyeditedby') <<
-        (self.is_from_suggestions? ? I18n.t('models.moderation.usersuggestions') : I18n.t('models.moderation.amoderator'))
-      m.body = I18n.t('models.moderation.storyeditedfor', :title=> "#{self.story.title}", :url=>  "#{self.story.comments_url}") <<
-        "\n" <<
-        "> *#{self.action}*\n"
+      m.subject = "Your story has been edited by " <<
+                  (self.is_from_suggestions? ? "user suggestions" : "a moderator")
+      m.body = "Your story [#{self.story.title}](" <<
+               "#{self.story.comments_url}) has been edited with the following " <<
+               "changes:\n" <<
+               "\n" <<
+               "> *#{self.action}*\n"
 
       if self.reason.present?
         m.body << "\n" <<
-          I18n.t('models.moderation.reasongiven') <<
+          "The reason given:\n" <<
           "\n" <<
           "> *#{self.reason}*\n"
       end
 
     elsif self.comment
       m.recipient_user_id = self.comment.user_id
-      m.subject = I18n.t('models.moderation.commentmoderated')
-      m.body = I18n.t('models.moderation.commentmoderatedwhy', :title=> "#{self.comment.story.title}", :url=> "#{self.comment.story.comments_url}") <<
-        "\n" <<
-        "> *#{self.comment.comment}*\n"
+      m.subject = "Your comment has been moderated"
+      m.body = "Your comment on [#{self.comment.story.title}](" <<
+               "#{self.comment.story.comments_url}) has been moderated:\n" <<
+               "\n" <<
+               "> *#{self.comment.comment}*\n"
 
       if self.reason.present?
         m.body << "\n" <<
-          I18n.t('models.moderation.reasongiven') <<
+          "The reason given:\n" <<
           "\n" <<
           "> *#{self.reason}*\n"
       end
@@ -49,8 +66,10 @@ class Moderation < ActiveRecord::Base
       return
     end
 
+    return if m.recipient_user_id == m.author_user_id
+
     m.body << "\n" <<
-      I18n.t('models.moderation.automatedmessage')
+      "*This is an automated message.*"
 
     m.save
   end

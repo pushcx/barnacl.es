@@ -1,28 +1,4 @@
-<% if f.object.errors.count == 1 && f.object.already_posted_story %>
-  <div class="flash-error">
-  <h2>Error: This story was already submitted <%=
-    time_ago_in_words_label(f.object.already_posted_story.created_at) %></h2>
-  <p>
-  Please view the <a href="<%= f.object.already_posted_story.comments_path %>"
-  target="_blank">previous discussion</a> for this story.
-  </p>
-  </div>
-<% elsif f.object.errors.any? %>
-  <%= error_messages_for f.object %>
-<% elsif !f.object.errors.any? && f.object.already_posted_story %>
-  <div class="flash-notice">
-  <h2>Note: This story was already submitted <%=
-    time_ago_in_words_label(f.object.already_posted_story.created_at) %>, but
-    may be submitted again.</h2>
-  <p>
-  Please view the <a href="<%= f.object.already_posted_story.comments_path %>"
-  target="_blank">previous discussion</a> for this story first.  If the content
-  has changed or warrants new discussion, you may submit it again.
-  </p>
-  </div>
-
-  <%= f.hidden_field :seen_previous %>
-<% end %>
+<%= render :partial => "stories/form_errors", :locals => { :f => f, :story => f.object } %>
 
 <div class="box">
   <% unless defined?(suggesting) %>
@@ -43,25 +19,20 @@
 
   <div class="boxline">
     <%= f.label :title, "Title:", :class => "required" %>
-    <%= f.text_field :title, :maxlength => 100, :autocomplete => "off"  %>
+    <%= f.text_field :title, :maxlength => 100 %>
+    <p class="actions title-reminder">
+      Please remove extraneous components from titles such as the name of the site, blog, section, and author.
+    </p>
   </div>
 
-  <% if f.object.id && !defined?(suggesting) %>
-    <% title_votes = {} %>
-    <% f.object.suggested_titles.each do |st| %>
-      <% title_votes[st.title] ||= 0 %>
-      <% title_votes[st.title] += 1 %>
-    <% end %>
-    <% title_votes.delete(f.object.title) %>
-    <% if title_votes.any? %>
-      <div class="boxline actions">
-        Users have suggested changing this story's title to:
-        <br>
-        <% title_votes.each do |ti,c| %>
-          <%= h(ti) %><%= c == 1 ? "" : " (#{c} votes)" %><br>
-        <% end %>
-      </div>
-    <% end %>
+  <% if f.object.id && !defined?(suggesting) && f.object.suggested_title_times.any? %>
+    <div class="boxline actions">
+      Users have suggested setting this story's title to:
+      <br>
+      <% f.object.suggested_title_times.each do |st| %>
+        <%= st.times %>: <%= st.title %><br>
+      <% end %>
+    </div>
   <% end %>
 
   <div class="boxline" style="margin-bottom: 2px;">
@@ -83,46 +54,36 @@
     f.object.tags_a), {}, { :multiple => true } %>
   </div>
 
-  <% if f.object.id && !defined?(suggesting) %>
-    <% tag_votes = {} %>
-    <% f.object.suggested_taggings.group_by(&:user_id).each do |u,stg| %>
-      <% tl = stg.map{|st| st.tag.tag }.sort.join(", ") %>
-      <% tag_votes[tl] ||= 0 %>
-      <% tag_votes[tl] += 1 %>
-    <% end %>
-    <% tag_votes.delete(f.object.tags_a.sort.join(", ")) %>
-    <% if tag_votes.any? %>
-      <div class="boxline actions">
-        Users have suggested changing this story's tags to:
-        <br>
-        <% tag_votes.each do |ts,c| %>
-          <%= ts %><%= c == 1 ? "" : " (#{c} votes)" %><br>
-        <% end %>
-      </div>
-    <% end %>
+  <% if f.object.id && !defined?(suggesting) && f.object.suggested_tagging_times.any? %>
+    <div class="boxline actions">
+      Users have suggested setting this story's tags to:
+      <br>
+      <% f.object.suggested_tagging_times.includes(:tag).each do |st| %>
+        <%= st.times %>: <%= tag_link(st.tag) %><br>
+      <% end %>
+    </div>
   <% end %>
 
   <% unless defined?(suggesting) %>
     <div class="boxline">
       <%= f.label :description, "Text:", :class => "required" %>
-      <%= f.text_area :description, :rows => 15,
-        :placeholder => "Optional when submitting a URL; please see guidelines",
-        :autocomplete => "off" %>
+      <%= f.text_area :description, :rows => 15, :placeholder => "Optional when submitting a URL.
+Not for summarizing the post or personal opinions.
+See the guidelines below." %>
     </div>
 
     <div class="boxline actions markdown_help_toggler">
       <a href="#" id="story_guidelines_toggler">
         Story submission guidelines
       </a>
-      <div id="story_guidelines" style="<%= show_guidelines?? "" :
-      "display: none;" %>">
+      <div id="story_guidelines" style="<%= show_guidelines?? "" : "display: none;" %>">
         <ul>
 
           <li><p>
           Do not editorialize story titles, but when the original story's
           title has no context or is unclear, please change it.  <strong>Please
           remove extraneous components from titles such as the name of the
-          site or section.</strong>
+          site, blog, section, and author.</strong>
           </p></li>
 
           <li><p>
@@ -139,15 +100,7 @@
           </p></li>
 
           <li><p>
-          Do not gratuitously editorialize story titles, but when the original
-          story's title has no context, is unclear, or is cloyingly
-          clickbaity, please change it.
-          <strong>Please remove extraneous components from titles such as the
-          name of the site or section.</strong>
-          </p></li>
-
-          <li><p>
-          If no tags clearly apply to the story you are submitting, chances
+          If no <a href="/tags">tags</a> clearly apply to the story you are submitting, chances
           are it does not belong here.  Do not overreach with tags if they
           are not the primary focus of the story.
           </p></li>
@@ -167,6 +120,7 @@
           %>%22&title=%22+encodeURIComponent(document.title));%20void(0);}<%
           %>">Submit to <%= Rails.application.name %></a>].
           You'll be taken to this page with the viewed page's URL and title.
+          (It can't recognize and remove blog/author names for you, though.)
           </p></li>
 
         </ul>
@@ -182,6 +136,14 @@
       <%= f.label :user_is_author,
         (f.object.id && f.object.user_id != @user.id ? "Submitter is" : "I am") +
         " the author of the story at this URL (or this text)",
+        :class => "normal" %>
+    </div>
+    <div class="boxline">
+      <%= f.label :user_is_following, "Follow:", :class => "required" %>
+      <%= f.check_box :user_is_following %>
+      <%= f.label :user_is_following,
+        (f.object.id && f.object.user_id == @user.id ? 'Follow' : "Submitter is following") +
+        " this story to receive replies via e-mail and Pushover",
         :class => "normal" %>
     </div>
   </div>

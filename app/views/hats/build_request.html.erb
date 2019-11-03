@@ -4,24 +4,13 @@
   </div>
 
   <p>
-  A hat is a formal, verified, way of posting a comment while speaking for a
-  project, organization, or company.  Each user may have multiple hats, one of
-  which may be worn at any time when posting a comment or sending a private
-  message.
+  A hat is a formal, verified way of speaking officially for a project, organization, or company on Lobsters.
+  A user can have more than one hat, but only wear one at a time on a comment or private message.
   </p>
   <p>
-  Hats are intended for core project developers and company employees that are
-  authorized to make comments on behalf of those organizations, and are usually
-  reserved for notable projects and organizations.  Hats are not intended to
-  list every contribution a person has made to any software project.
-  </p>
-  <p>
-  Hats will not be authorized for occasional contributors to projects,
-  developers of projects which are not widely known, past employees of
-  companies, or other situations where it cannot be verified that one is
-  authorized to represent that organization.  In general, unless one has an
-  e-mail address at a compay domain or have commit access to a project, a hat
-  will not be authorized.
+  Hats are for making public statements, not commemorating contributions to a project or jobs held.
+  Please request one only if you'll be acting offically here, like if you're a core project developer or company employee authorized to post on behalf of your organization.
+  Hats are usually reserved for notable projects and organizations.
   </p>
   <p>
   To request a hat for your account, provide a short description of the hat
@@ -31,12 +20,16 @@
   private comments that will be seen only by moderators during approval.
   </p>
   <p>
-  Once your hat is requested, a moderator will verify your request by e-mailing
-  the address you submitted as the link, or doing some other manual
-  verification of project association.
+  It's really helpful if you link your GitHub or Twitter account to your Lobsters account and,
+  in your comment, link to where the organization links to that public account.
+  Then we can instantly see you're legit without having to send a verification email.
+  </p>
+  <p>
+  When you can no longer speak for a project or company, please contact a moderator to doff your hat.
+  Old messages will still show it and you won't be able to use it again.
   </p>
 
-  <%= form_for @hat_request, :url => create_hat_request_path do |f| %>
+  <%= form_with model: @hat_request, url: create_hat_request_path, local: true do |f| %>
     <p>
     <%= f.label :hat, "Hat:" %>
     <%= f.text_field :hat, :size => 20,
@@ -49,8 +42,7 @@
     <br />
 
     <%= f.label :comment, "Comment:" %>
-    <%= f.text_area :comment, :rows => 4,
-      :placeholder => "Will only be shown to moderators during approval" %>
+    <%= f.text_area :comment, :rows => 4, :placeholder => "Will only be shown to moderators during approval. Please link to discussions where this hat would be useful for speaking on behalf of your project." %>
     </p>
 
     <p>
